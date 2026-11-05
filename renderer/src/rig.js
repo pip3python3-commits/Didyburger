@@ -225,9 +225,17 @@ function makeHair(kind, color) {
 const S = Math.sin, C = Math.cos;
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const backOut = (x) => { x = clamp01(x); const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
-function basePose() { return { y: 0, lean: 0, twist: 0, nod: 0, roll: 0, hL: [-0.58, 1.35, 0.05], hR: [0.58, 1.35, 0.05], fL: [-0.2, 0, 0], fR: [0.2, 0, 0], liftL: 0, liftR: 0, crouch: 0, sq: 0, sit: 0 }; }
+function basePose() { return { y: 0, lean: 0, twist: 0, nod: 0, roll: 0, hL: [-0.47, 1.3, 0.07], hR: [0.47, 1.3, 0.07], fL: [-0.2, 0, 0], fR: [0.2, 0, 0], liftL: 0, liftR: 0, crouch: 0, sq: 0, sit: 0 }; }
 const ANIMS = {
-  idle(t) { const p = basePose(), s = S(t * 2.1); p.y = s * 0.02; p.sq = s * 0.012; p.hL[1] += s * 0.03; p.hR[1] -= s * 0.03; p.roll = S(t * 1.1) * 0.04; p.nod = S(t * 1.7) * 0.03; return p; },
+  idle(t) {
+    const p = basePose(), s = S(t * 2.1);
+    p.y = s * 0.02; p.sq = s * 0.012; p.roll = S(t * 1.1) * 0.04; p.nod = S(t * 1.7) * 0.03;
+    const w = S(t * 0.8), f1 = S(t * 0.37) * S(t * 0.53), f2 = S(t * 0.29 + 1.3) * S(t * 0.47);     // weight shift + slow independent fidgets
+    p.hL = [-0.47 - 0.03 * s + 0.03 * f1, 1.3 + 0.03 * s + 0.05 * f1, 0.07 + 0.06 * w + 0.07 * f1];
+    p.hR = [0.47 + 0.03 * s - 0.03 * f2, 1.3 - 0.03 * s + 0.05 * f2, 0.07 - 0.06 * w + 0.07 * f2];
+    p.twist = 0.025 * w;
+    return p;
+  },
   talk(t) { return ANIMS.idle(t); },
   walk(t, k = 1) { const p = basePose(), ph = t * 7 * k; p.y = Math.abs(S(ph)) * 0.07; p.sq = -Math.abs(C(ph)) * 0.03 + 0.015; p.fL = [-0.2, 0, S(ph) * 0.5]; p.fR = [0.2, 0, -S(ph) * 0.5]; p.liftL = Math.max(0, C(ph)) * 0.3; p.liftR = Math.max(0, -C(ph)) * 0.3; p.hL = [-0.58, 1.4, -S(ph) * 0.4]; p.hR = [0.58, 1.4, S(ph) * 0.4]; p.twist = S(ph) * 0.08; p.roll = S(ph) * 0.04; return p; },
   sneak(t, k = 1) { const p = ANIMS.walk(t, 0.6 * k); p.crouch = 0.25; p.lean = 0.25; p.hL = [-0.5, 2.0, 0.6]; p.hR = [0.5, 2.0, 0.6]; p.nod = 0.1; return p; },
@@ -410,7 +418,8 @@ export class Character {
     const fL = V(pose.fL), fR = V(pose.fR); fL.y += pose.liftL + 0.07 + air * 0.92; fR.y += pose.liftR + 0.07 + air * 0.92;
     if (Math.abs(fL.x - fR.x) < 0.12) { fL.x -= 0.06; fR.x += 0.06; }      // keep the feet from crossing
     const LEG = 1.5, ARM = 1.55;
-    const reach = (a, b, L, out, fwd, hose, maxSlack) => {
+    const reach = (a, b, Lmax, out, fwd, hose, maxSlack, dyn) => {
+      const d0 = b.distanceTo(a), L = dyn ? Math.min(Lmax, d0 * 1.1 + 0.05) : Lmax;     // arms: just enough slack for a soft elbow (no hula-hoop loops)
       const dir = b.clone().sub(a), d = dir.length();
       if (d > L) { b.copy(a).add(dir.setLength(L)); }
       const axis = b.clone().sub(a).normalize();
@@ -423,7 +432,7 @@ export class Character {
       const mid = a.clone().add(b).multiplyScalar(0.5).addScaledVector(bend, slack * 1.05 + 0.02);
       hose.update(a, b, mid);
     };
-    reach(sL, handL, ARM, -0.7, -0.55, this.armL, 0.7); reach(sR, handR, ARM, 0.7, -0.55, this.armR, 0.7);
+    reach(sL, handL, ARM, -0.45, -0.85, this.armL, 0.5, true); reach(sR, handR, ARM, 0.45, -0.85, this.armR, 0.5, true);
     reach(hL, fL, LEG, -0.15, 0.95, this.legL, 0.4); reach(hR, fR, LEG, 0.15, 0.95, this.legR, 0.4);
     this.handL.position.copy(handL); this.handR.position.copy(handR);
     this.footL.position.copy(fL); this.footR.position.copy(fR);
