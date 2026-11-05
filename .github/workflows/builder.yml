@@ -1,0 +1,258 @@
+name: builder
+
+# Renders a procedural-3D story video (short 9:16 OR long 16:9) entirely in CI. No LLM / API keys needed:
+# the narration + storyboard live in story/story.json (written ahead of time).
+#   audio  : Kokoro-ONNX TTS + faster-whisper word timings + synthesized SFX -> timeline.json + audio.wav,
+#            and decides resolution / fps / shard count from the story's "format"
+#   render : Three.js frames in headless Chromium (software WebGL), sharded across a matrix of runners
+#   mux    : per-shard x264 segments are concatenated + muxed with the audio -> out.mp4
+
+on:
+  workflow_dispatch:
+    inputs:
+      story:
+        description: Storyboard JSON
+        default: story/story.json
+      shards:
+        description: "Parallel render shards (0 = auto from the format's framesPerShard; max 250)"
+        default: "0"
+      paint:
+        description: Painterly brush filter strength (0 = off, 1 = full)
+        default: "1"
+  push:
+    paths:
+      - "story/story.json"
+      - "story/episodes/*.json"      # series: one commit per episode file -> one run per episode
+
+permissions:
+  contents: write                    # publish the finished video as a GitHub Release + write the ci-status branch
+  actions: read
+
+env:
+  PAINT: ${{ inputs.paint || '1' }}
+  SHARDS_IN: ${{ inputs.shards || '0' }}
+
+jobs:
+  # ------------------------------------------------------------------ 1. voice + timeline
+  audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      story: ${{ steps.pick.outputs.story }}
+      name: ${{ steps.pick.outputs.name }}
+      frames: ${{ steps.meta.outputs.frames }}
+      matrix: ${{ steps.meta.outputs.matrix }}
+      width: ${{ steps.meta.outputs.width }}
+      height: ${{ steps.meta.outputs.height }}
+      outw: ${{ steps.meta.outputs.outw }}
+      outh: ${{ steps.meta.outputs.outh }}
+      fps: ${{ steps.meta.outputs.fps }}
+      crf: ${{ steps.meta.outputs.crf }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Pick the storyboard (dispatch input, or the episode file changed by this push)
+        id: pick
+        run: |
+          S="${{ inputs.story }}"
+          if [ -z "$S" ]; then S=$(git diff --name-only HEAD~1 HEAD -- 'story/episodes/*.json' 'story/story.json' | head -n 1); fi
+          [ -n "$S" ] || S=story/story.json
+          echo "story=$S" >> "$GITHUB_OUTPUT"; echo "name=$(basename "$S" .json)" >> "$GITHUB_OUTPUT"
+          echo "STORY=$S" >> "$GITHUB_ENV"; echo "storyboard: $S"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: System deps (espeak-ng for Kokoro phonemes)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends espeak-ng ffmpeg
+
+      - name: Python deps
+        run: pip install -r requirements.txt
+
+      - name: Cache Kokoro + Whisper models
+        uses: actions/cache@v4
+        with:
+          path: |
+            models
+            ~/.cache/huggingface
+          key: kokoro-v1.0-whisper-base.en
+
+      - name: Validate storyboard
+        run: python scripts/validate_story.py "$STORY" --strict-ci
+
+      - name: Synthesize narration, align words, mix SFX
+        run: python pipeline/tts.py --story "$STORY" --out build --models models
+
+      - name: Compute format + frame shards
+        id: meta
+        run: |
+          python - <<'PY'
+          import json, math, os
+          tl = json.load(open("build/timeline.json")); f = tl["format"]
+          fps = int(f["fps"]); total = math.ceil(tl["duration"] * fps)
+          n = int(os.environ["SHARDS_IN"]) or math.ceil(total / int(f["framesPerShard"]))
+          n = max(1, min(250, n)); per = math.ceil(total / n)
+          shards = [{"i": i, "from": i * per, "to": min(total, (i + 1) * per)} for i in range(n) if i * per < total]
+          out = {"frames": total, "matrix": json.dumps({"include": shards}), "width": f["width"], "height": f["height"],
+                 "outw": f["outWidth"], "outh": f["outHeight"], "fps": fps, "crf": f["crf"]}
+          with open(os.environ["GITHUB_OUTPUT"], "a") as o:
+              for k, v in out.items(): o.write(f"{k}={v}\n")
+          print(f"{tl['duration']:.1f}s @ {fps}fps = {total} frames, {len(shards)} shards of ~{per}, render {f['width']}x{f['height']} -> {f['outWidth']}x{f['outHeight']}")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: timeline
+          path: |
+            build/timeline.json
+            build/audio.wav
+          retention-days: 7
+
+  # ------------------------------------------------------------------ 2. render frames (matrix)
+  render:
+    needs: audio
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.audio.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Node deps
+        run: npm ci || npm install
+
+      - name: Chromium (software WebGL via SwiftShader) + fonts + ffmpeg
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-nunito fonts-dejavu-core || sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: timeline
+          path: build
+
+      - name: Render frames ${{ matrix.from }}-${{ matrix.to }}
+        run: |
+          node renderer/render.mjs \
+            --timeline build/timeline.json --out build/frames \
+            --width "${{ needs.audio.outputs.width }}" --height "${{ needs.audio.outputs.height }}" --fps "${{ needs.audio.outputs.fps }}" \
+            --paint "$PAINT" --from ${{ matrix.from }} --to ${{ matrix.to }} --workers "$(nproc)"
+          ls build/frames | wc -l
+
+      - name: Encode segment ${{ matrix.i }}
+        run: |
+          FPS=${{ needs.audio.outputs.fps }}
+          ffmpeg -y -framerate "$FPS" -start_number ${{ matrix.from }} -i build/frames/f_%05d.jpg \
+            -vf "scale=${{ needs.audio.outputs.outw }}:${{ needs.audio.outputs.outh }}:flags=lanczos,format=yuv420p" \
+            -c:v libx264 -preset medium -crf ${{ needs.audio.outputs.crf }} -g $((FPS*2)) -r "$FPS" \
+            -movflags +faststart build/seg_${{ matrix.i }}.mp4
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seg-${{ matrix.i }}
+          path: build/seg_${{ matrix.i }}.mp4
+          retention-days: 3
+
+      - name: Keep a few raw frames for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-frames-${{ matrix.i }}
+          path: |
+            build/frames/f_*00.jpg
+          retention-days: 2
+          if-no-files-found: ignore
+
+  # ------------------------------------------------------------------ 3. concat + mux
+  mux:
+    needs: [audio, render]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: timeline
+          path: build
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: seg-*
+          path: build/segs
+          merge-multiple: true
+
+      - name: Concatenate segments and add audio
+        run: |
+          ls build/segs | head -n 5
+          for f in $(ls build/segs/seg_*.mp4 | sort -V); do echo "file '$PWD/$f'"; done > build/list.txt
+          ffmpeg -y -f concat -safe 0 -i build/list.txt -c copy build/video_silent.mp4
+
+          if [ -f assets/music.mp3 ]; then
+            ffmpeg -y -i build/video_silent.mp4 -i build/audio.wav -stream_loop -1 -i assets/music.mp3 \
+              -filter_complex "[2:a]volume=0.10[m];[1:a][m]amix=inputs=2:duration=first:normalize=0[a]" \
+              -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -ar 44100 -shortest -movflags +faststart out.mp4
+          else
+            ffmpeg -y -i build/video_silent.mp4 -i build/audio.wav \
+              -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -ar 44100 -shortest -movflags +faststart out.mp4
+          fi
+          ffprobe -v error -show_entries stream=codec_name,width,height,duration -of default=nw=1 out.mp4
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: video
+          path: out.mp4
+          retention-days: 30
+
+      - name: Publish as a GitHub Release (easy download)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          N="${{ needs.audio.outputs.name }}"; TAG="$N-r${{ github.run_number }}"
+          T=$(python3 -c "import json;print(json.load(open('${{ needs.audio.outputs.story }}')).get('title','$N'))")
+          cp out.mp4 "$N.mp4"
+          gh release create "$TAG" "$N.mp4" --title "$T" --notes "Rendered by run ${{ github.run_id }} from ${{ needs.audio.outputs.story }}." --repo "$GITHUB_REPOSITORY"
+
+  # ------------------------------------------------------------------ 4. status report -> ci-status branch (readable with plain git)
+  report:
+    needs: [audio, render, mux]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write status + failing logs to the ci-status branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          N="${{ needs.audio.outputs.name || 'unknown' }}"; F="status/$N-run${{ github.run_number }}.txt"
+          mkdir -p /tmp/st
+          {
+            echo "run ${{ github.run_id }} #${{ github.run_number }} story=${{ needs.audio.outputs.story }} sha=${{ github.sha }}"
+            echo "audio=${{ needs.audio.result }} render=${{ needs.render.result }} mux=${{ needs.mux.result }} frames=${{ needs.audio.outputs.frames }}"
+            gh run view ${{ github.run_id }} --repo "$GITHUB_REPOSITORY" --json jobs --jq '.jobs[] | "\(.name)\t\(.conclusion)\t\(.startedAt)\t\(.completedAt)"' || true
+            echo "---- failed logs (tail) ----"
+            gh run view ${{ github.run_id }} --repo "$GITHUB_REPOSITORY" --log-failed 2>/dev/null | tail -n 150 || true
+          } > /tmp/st/report.txt
+          git config user.name "ci-bot"; git config user.email "ci-bot@users.noreply.github.com"
+          for i in 1 2 3 4 5 6; do
+            if git fetch -q origin +refs/heads/ci-status:refs/remotes/origin/ci-status 2>/dev/null; then
+              git checkout -qf -B ci-status refs/remotes/origin/ci-status
+            else
+              git checkout -q --orphan ci-status && git rm -rqf --cached . && git clean -fdq
+            fi
+            mkdir -p status && cp /tmp/st/report.txt "$F"
+            git add "$F" && git commit -qm "status $N run ${{ github.run_number }}" && git push -q origin ci-status && break
+            sleep $((i * 3)); git reset -q --hard; git clean -fdq
+          done

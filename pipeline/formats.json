@@ -1,0 +1,4 @@
+{
+  "short": { "width": 720,  "height": 1280, "outWidth": 1080, "outHeight": 1920, "fps": 30, "crf": 15, "fovScale": 1.0,  "captionSize": 0.06, "captionY": 0.70, "framesPerShard": 240 },
+  "long":  { "width": 1280, "height": 720,  "outWidth": 1920, "outHeight": 1080, "fps": 24, "crf": 20, "fovScale": 0.8, "captionSize": 0.066, "captionY": 0.80, "framesPerShard": 720 }
+}

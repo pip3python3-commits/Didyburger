@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+  #cap {
+    position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
+    font-family: "Nunito", "Baloo 2", "Arial Rounded MT Bold", "DejaVu Sans", Arial, sans-serif;
+    font-weight: 900; color: #fff; line-height: 1; letter-spacing: 0.01em;
+    transform-origin: 50% 50%; white-space: nowrap;
+  }
+  #title {
+    position: absolute; left: 50%; top: 24%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; opacity: 0;
+    font-family: "Nunito", "Baloo 2", "Arial Rounded MT Bold", "DejaVu Sans", Arial, sans-serif; font-weight: 900; color: #fff; width: 90%;
+    text-shadow: 0 0.06em 0 #1a0f16, 0 0 0.35em rgba(26,15,22,.9), 0 0.12em 0.4em rgba(0,0,0,.55);
+  }
+  #title .t { line-height: 1.02; } #title .s { font-size: 0.45em; margin-top: 0.25em; opacity: .92; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="cap"></div>
+<div id="title"></div>
+<script type="module" src="/renderer/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+{
+  "title": "Example long-form skeleton (studio set)",
+  "format": "long",
+  "voice": "af_heart",
+  "speed": 1.05,
+  "cast": {
+    "host": {
+      "type": "engineer"
+    },
+    "skeptic": {
+      "type": "boss"
+    },
+    "kid": {
+      "type": "kid"
+    }
+  },
+  "beats": [
+    {
+      "id": "intro",
+      "narration": "Quick question. How many people do you need in a room before two of them probably share a birthday?",
+      "set": "studio",
+      "grade": "dayCool",
+      "cut": "none",
+      "shot": {
+        "type": "medium",
+        "f": "host",
+        "az": 10,
+        "move": "push"
+      },
+      "actors": [
+        {
+          "id": "host",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 0,
+          "anim": "present",
+          "face": "smile"
+        }
+      ],
+      "setColors": {
+        "backdrop": "#3d3a5c",
+        "floor": "#6b5a73"
+      },
+      "title": {
+        "text": "The Birthday Paradox",
+        "sub": "Chapter 1: The Question",
+        "dur": 2.8
+      }
+    },
+    {
+      "id": "guess",
+      "narration": "Most people guess something huge. Like a hundred. Or even a hundred and eighty-three.",
+      "set": "studio",
+      "grade": "dayCool",
+      "cut": "whip",
+      "shot": {
+        "type": "medium",
+        "f": [
+          1.5,
+          0,
+          0
+        ],
+        "az": -12,
+        "move": "drift"
+      },
+      "actors": [
+        {
+          "id": "skeptic",
+          "pos": [
+            2.6,
+            0,
+            0
+          ],
+          "rot": -15,
+          "anim": "smug",
+          "face": "smug"
+        },
+        {
+          "id": "host",
+          "pos": [
+            -1.2,
+            0,
+            0
+          ],
+          "rot": 15,
+          "anim": "idle",
+          "face": "neutral"
+        }
+      ],
+      "setColors": {
+        "backdrop": "#5c3d4a",
+        "floor": "#73596a"
+      }
+    },
+    {
+      "id": "answer",
+      "narration": "The real answer is twenty-three. Just twenty-three people gives you better than even odds.",
+      "set": "studio",
+      "grade": "goldHour",
+      "cut": "flash",
+      "shot": {
+        "type": "close",
+        "f": "host",
+        "move": "push",
+        "amount": 0.3
+      },
+      "actors": [
+        {
+          "id": "host",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 0,
+          "anim": "point",
+          "face": "grin",
+          "then": [
+            {
+              "at": 0.5,
+              "face": "smile"
+            }
+          ]
+        }
+      ],
+      "setColors": {
+        "backdrop": "#7a4a2a",
+        "floor": "#8c6a4a"
+      },
+      "sfx": [
+        {
+          "at": 0.4,
+          "type": "ding",
+          "vol": 0.6
+        }
+      ]
+    },
+    {
+      "id": "shock",
+      "narration": "Wait. That can't be right.",
+      "set": "studio",
+      "grade": "alarm",
+      "cut": "whip",
+      "shot": {
+        "type": "low",
+        "f": "skeptic",
+        "move": "pull"
+      },
+      "actors": [
+        {
+          "id": "skeptic",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 0,
+          "anim": "shock",
+          "face": "shock"
+        }
+      ],
+      "setColors": {
+        "backdrop": "#3a2a78",
+        "floor": "#5a3a6a"
+      }
+    },
+    {
+      "id": "pairs",
+      "narration": "The trick is that you are not comparing you against everyone. You are comparing every pair.",
+      "set": "studio",
+      "grade": "dayCool",
+      "cut": "whip",
+      "shot": {
+        "type": "wide",
+        "f": [
+          0,
+          0,
+          0
+        ],
+        "move": "crane",
+        "rise": 6
+      },
+      "actors": [
+        {
+          "id": "host",
+          "pos": [
+            -3,
+            0,
+            0
+          ],
+          "rot": 20,
+          "anim": "present",
+          "face": "smile"
+        },
+        {
+          "id": "kid",
+          "pos": [
+            0,
+            0,
+            -2
+          ],
+          "rot": 0,
+          "anim": "wave",
+          "face": "grin"
+        },
+        {
+          "id": "skeptic",
+          "pos": [
+            3,
+            0,
+            0
+          ],
+          "rot": -20,
+          "anim": "idle",
+          "face": "worried"
+        }
+      ],
+      "setColors": {
+        "backdrop": "#2f4a6a",
+        "floor": "#4a6a82"
+      },
+      "title": {
+        "text": "Chapter 2",
+        "sub": "Counting Pairs",
+        "dur": 2.4
+      }
+    },
+    {
+      "id": "outro",
+      "narration": "Twenty-three people make two hundred fifty-three pairs. That is a lot of chances for a match.",
+      "set": "studio",
+      "grade": "dayCool",
+      "cut": "flash",
+      "shot": {
+        "type": "medium",
+        "f": "host",
+        "az": -8,
+        "move": "pull"
+      },
+      "actors": [
+        {
+          "id": "host",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 0,
+          "anim": "smug",
+          "face": "smile"
+        }
+      ],
+      "pad": 1.0,
+      "setColors": {
+        "backdrop": "#3d3a5c",
+        "floor": "#6b5a73"
+      }
+    }
+  ]
+}

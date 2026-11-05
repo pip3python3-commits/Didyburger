@@ -1,0 +1,1114 @@
+{
+ "title": "The Great Hanoi Rat Bounty",
+ "format": "short",
+ "voice": "af_heart",
+ "speed": 1.08,
+ "fps": 30,
+ "cast": {
+  "official": {
+   "type": "official",
+   "skin": "s1"
+  },
+  "clerk": {
+   "type": "clerk",
+   "skin": "s3",
+   "hair": "short"
+  },
+  "catcher": {
+   "type": "catcher",
+   "skin": "s4"
+  },
+  "catcher2": {
+   "type": "catcher",
+   "skin": "s5",
+   "hatColor": "#c9b06a",
+   "torso": "#5a3a2a"
+  },
+  "vendor": {
+   "type": "vendor",
+   "skin": "s2"
+  },
+  "kid": {
+   "type": "kid",
+   "skin": "s4",
+   "hat": "none",
+   "hair": "tuft"
+  },
+  "farmer": {
+   "type": "farmer",
+   "skin": "s3"
+  }
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "narration": "In 1902, the city of Hanoi paid people to kill rats.",
+   "set": "oldquarter",
+   "grade": "oqDay",
+   "shot": {
+    "type": "wide",
+    "f": [
+     0,
+     0,
+     -2
+    ],
+    "dist": 17,
+    "h": 4.5,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      0,
+      0,
+      -1
+     ],
+     "anim": "shock",
+     "face": "shock",
+     "rot": 0,
+     "enter": "pop"
+    },
+    {
+     "id": "vendor",
+     "pos": [
+      -3.4,
+      0,
+      -4
+     ],
+     "anim": "cower",
+     "face": "panic",
+     "rot": 30
+    },
+    {
+     "id": "kid",
+     "pos": [
+      3,
+      0,
+      -3
+     ],
+     "anim": "jump",
+     "face": "shock",
+     "rot": -20
+    }
+   ],
+   "rats": {
+    "n": 0.7,
+    "mode": "scurry"
+   },
+   "fx": {
+    "dust": 0.4
+   },
+   "emph": [
+    "rats"
+   ],
+   "pad": 0.2,
+   "sfx": [
+    {
+     "type": "pop",
+     "at": 0.05
+    }
+   ]
+  },
+  {
+   "id": "twist",
+   "narration": "And somehow, it ended with more rats than it started with.",
+   "set": "oldquarter",
+   "grade": "oqGold",
+   "shot": {
+    "type": "close",
+    "f": "official",
+    "az": 15,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      0,
+      0,
+      -1
+     ],
+     "anim": "facepalm",
+     "face": "tired",
+     "rot": 0
+    }
+   ],
+   "rats": {
+    "n": 0.6,
+    "mode": "scurry",
+    "speed": 1.2
+   },
+   "cut": "zoom",
+   "emph": [
+    "more"
+   ]
+  },
+  {
+   "id": "sewers",
+   "narration": "The French colonial government had just built shiny new sewers under their part of the city.",
+   "set": "sewer",
+   "grade": "sewer",
+   "shot": {
+    "type": "wide",
+    "f": [
+     0,
+     0.6,
+     -6
+    ],
+    "dist": 16,
+    "h": 2.6,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      3.8,
+      0.6,
+      -3
+     ],
+     "anim": "present",
+     "face": "smug",
+     "rot": -30,
+     "enter": "drop"
+    }
+   ],
+   "rats": {
+    "n": 0.2,
+    "mode": "mill"
+   },
+   "fx": {
+    "rays": 0.45,
+    "raysFrom": [
+     -2.4,
+     7.5,
+     -12
+    ],
+    "rayCol": "#fff0c8",
+    "dust": 0.8
+   },
+   "cut": "whip",
+   "sfx": [
+    {
+     "type": "whoosh",
+     "at": 0
+    }
+   ]
+  },
+  {
+   "id": "love",
+   "narration": "The rats loved them. Dark, warm, and connected to every home in town.",
+   "set": "sewer",
+   "grade": "sewerRed",
+   "shot": {
+    "type": "low",
+    "f": [
+     0,
+     0.6,
+     -3
+    ],
+    "dist": 9,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "tl": [
+      {
+       "at": 0,
+       "anim": "run",
+       "face": "panic",
+       "pos": [
+        -4.2,
+        0.6,
+        -14
+       ],
+       "rot": 0
+      },
+      {
+       "at": 1,
+       "pos": [
+        -4.2,
+        0.6,
+        1
+       ]
+      }
+     ]
+    }
+   ],
+   "rats": {
+    "n": 1,
+    "mode": "scurry",
+    "speed": 1.4
+   },
+   "fx": {
+    "dust": 0.5
+   },
+   "emph": [
+    "loved"
+   ]
+  },
+  {
+   "id": "uprising",
+   "narration": "Then they started coming up. Out of the drains, into kitchens and bedrooms.",
+   "set": "oldquarter",
+   "grade": "oqGold",
+   "shot": {
+    "type": "medium",
+    "f": [
+     0,
+     0,
+     -2
+    ],
+    "dist": 11,
+    "h": 3,
+    "move": "push",
+    "az": -10
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      -1.5,
+      0,
+      -1
+     ],
+     "anim": "cower",
+     "face": "panic",
+     "rot": 20
+    },
+    {
+     "id": "vendor",
+     "pos": [
+      2.4,
+      0,
+      -3.5
+     ],
+     "anim": "panic",
+     "face": "panic",
+     "rot": -30
+    }
+   ],
+   "rats": {
+    "n": 1,
+    "mode": "flee",
+    "speed": 1.1
+   },
+   "fx": {
+    "dust": 0.4,
+    "impact": 0.05
+   },
+   "cut": "flash"
+  },
+  {
+   "id": "hire",
+   "narration": "So the government hired Vietnamese workers to climb down and hunt them.",
+   "set": "sewer",
+   "grade": "sewer",
+   "shot": {
+    "type": "medium",
+    "f": "catcher",
+    "az": -30,
+    "dist": 10,
+    "move": "drift"
+   },
+   "actors": [
+    {
+     "id": "catcher",
+     "tl": [
+      {
+       "at": 0,
+       "anim": "sneak",
+       "face": "sly",
+       "pos": [
+        3.8,
+        0.6,
+        3
+       ],
+       "rot": 180,
+       "prop": "lantern"
+      },
+      {
+       "at": 1,
+       "pos": [
+        3.8,
+        0.6,
+        -2
+       ]
+      }
+     ]
+    },
+    {
+     "id": "catcher2",
+     "tl": [
+      {
+       "at": 0,
+       "anim": "sneak",
+       "face": "think",
+       "pos": [
+        4.6,
+        0.6,
+        6
+       ],
+       "rot": 180,
+       "prop": "net"
+      },
+      {
+       "at": 1,
+       "pos": [
+        4.6,
+        0.6,
+        1
+       ]
+      }
+     ]
+    }
+   ],
+   "rats": {
+    "n": 0.6,
+    "mode": "mill"
+   },
+   "fx": {
+    "rays": 0.45,
+    "raysFrom": [
+     -2.4,
+     7.5,
+     -12
+    ],
+    "dust": 0.6
+   },
+   "cut": "ghost"
+  },
+  {
+   "id": "count",
+   "narration": "Twenty thousand rats in a single day, sir!",
+   "set": "office",
+   "grade": "officeWarm",
+   "shot": {
+    "type": "medium",
+    "f": "clerk",
+    "az": -20,
+    "dist": 8,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "clerk",
+     "pos": [
+      -4.8,
+      0,
+      0.1
+     ],
+     "anim": "holdUp",
+     "face": "grin",
+     "rot": 0,
+     "prop": "ledger"
+    },
+    {
+     "id": "official",
+     "pos": [
+      -1.6,
+      0,
+      1.6
+     ],
+     "anim": "armsCrossed",
+     "face": "smug",
+     "rot": -70
+    }
+   ],
+   "talk": "clerk",
+   "voice": "am_puck",
+   "speed": 1.12,
+   "world": {
+    "tails": 0.4
+   },
+   "fx": {
+    "rays": 0.35,
+    "raysFrom": [
+     0,
+     5,
+     -9.8
+    ]
+   },
+   "emph": [
+    "twenty",
+    "thousand"
+   ],
+   "cut": "whip",
+   "sfx": [
+    {
+     "type": "ding",
+     "at": 0.1
+    }
+   ]
+  },
+  {
+   "id": "dent",
+   "narration": "But the tunnels were endless, and the rats kept breeding.",
+   "set": "sewer",
+   "grade": "sewerRed",
+   "shot": {
+    "type": "wide",
+    "f": [
+     2,
+     0.6,
+     -4
+    ],
+    "dist": 14,
+    "h": 2.4,
+    "move": "pull"
+   },
+   "actors": [
+    {
+     "id": "catcher",
+     "pos": [
+      3.6,
+      0.6,
+      0
+     ],
+     "anim": "dejected",
+     "face": "tired",
+     "rot": 160,
+     "prop": "net"
+    }
+   ],
+   "rats": {
+    "n": 1,
+    "mode": "mill",
+    "speed": 1.3
+   },
+   "fx": {
+    "dust": 0.5
+   }
+  },
+  {
+   "id": "idea",
+   "narration": "So the officials came up with a clever plan.",
+   "set": "office",
+   "grade": "officeTeal",
+   "shot": {
+    "type": "close",
+    "f": "official",
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      0,
+      0,
+      -1.3
+     ],
+     "anim": "think",
+     "face": "think",
+     "rot": 0
+    }
+   ],
+   "world": {
+    "tails": 0.4
+   },
+   "fx": {
+    "rays": 0.35,
+    "raysFrom": [
+     0,
+     5,
+     -9.8
+    ]
+   },
+   "cut": "whip"
+  },
+  {
+   "id": "bounty",
+   "narration": "One cent for every rat. Just bring us the tail!",
+   "set": "oldquarter",
+   "grade": "oqDay",
+   "shot": {
+    "type": "medium",
+    "f": "official",
+    "dist": 10,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      0,
+      0,
+      -2
+     ],
+     "anim": "holdUp",
+     "face": "grin",
+     "rot": 0,
+     "prop": "coin"
+    },
+    {
+     "id": "vendor",
+     "pos": [
+      -3,
+      0,
+      1
+     ],
+     "anim": "idle",
+     "face": "shock",
+     "rot": 150
+    },
+    {
+     "id": "kid",
+     "pos": [
+      2.6,
+      0,
+      1.2
+     ],
+     "anim": "cheer",
+     "face": "laugh",
+     "rot": -150
+    },
+    {
+     "id": "catcher2",
+     "pos": [
+      -1.4,
+      0,
+      2.4
+     ],
+     "anim": "clap",
+     "face": "grin",
+     "rot": 175
+    }
+   ],
+   "talk": "official",
+   "voice": "bm_george",
+   "speed": 1.05,
+   "posters": true,
+   "fx": {
+    "coins": 0.3
+   },
+   "emph": [
+    "cent",
+    "tail"
+   ],
+   "cut": "flash",
+   "sfx": [
+    {
+     "type": "ding",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "id": "why",
+   "narration": "Tails were easy to count, and nobody wanted dead rats piled on their desk.",
+   "set": "office",
+   "grade": "officeWarm",
+   "shot": {
+    "type": "prop",
+    "f": [
+     -4.8,
+     0.4,
+     1.0
+    ],
+    "dist": 5.5,
+    "h": 2.6,
+    "move": "orbit",
+    "orbit": 24
+   },
+   "actors": [
+    {
+     "id": "clerk",
+     "pos": [
+      -4.8,
+      0,
+      0.1
+     ],
+     "anim": "count",
+     "face": "worried",
+     "rot": 0,
+     "prop": "tails"
+    }
+   ],
+   "world": {
+    "tails": [
+     0.5,
+     0.8
+    ]
+   },
+   "emph": [
+    "tails"
+   ]
+  },
+  {
+   "id": "pour",
+   "narration": "Coins poured out. Tails poured in.",
+   "set": "oldquarter",
+   "grade": "oqGold",
+   "shot": {
+    "type": "low",
+    "f": [
+     0,
+     0,
+     -1
+    ],
+    "dist": 12,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "catcher",
+     "tl": [
+      {
+       "at": 0,
+       "anim": "walk",
+       "face": "grin",
+       "pos": [
+        1.5,
+        0,
+        4
+       ],
+       "rot": 180,
+       "prop": "tails"
+      },
+      {
+       "at": 1,
+       "pos": [
+        1.2,
+        0,
+        -3
+       ]
+      }
+     ]
+    },
+    {
+     "id": "vendor",
+     "tl": [
+      {
+       "at": 0,
+       "anim": "walk",
+       "face": "smile",
+       "pos": [
+        -1.8,
+        0,
+        5
+       ],
+       "rot": 180,
+       "prop": "tails"
+      },
+      {
+       "at": 1,
+       "pos": [
+        -1.5,
+        0,
+        -1.5
+       ]
+      }
+     ]
+    },
+    {
+     "id": "kid",
+     "pos": [
+      3.2,
+      0,
+      -2
+     ],
+     "anim": "cheer",
+     "face": "laugh",
+     "rot": -160,
+     "prop": "coin"
+    }
+   ],
+   "fx": {
+    "coins": 0.8,
+    "dust": 0.3
+   },
+   "emph": [
+    "coins",
+    "tails"
+   ],
+   "cut": "zoom",
+   "sfx": [
+    {
+     "type": "ding",
+     "at": 0.1
+    },
+    {
+     "type": "ding",
+     "at": 0.55
+    }
+   ]
+  },
+  {
+   "id": "odd",
+   "narration": "Then inspectors noticed something odd.",
+   "set": "oldquarter",
+   "grade": "oqDay",
+   "shot": {
+    "type": "medium",
+    "f": "official",
+    "az": 30,
+    "move": "drift"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "tl": [
+      {
+       "at": 0,
+       "anim": "walk",
+       "face": "think",
+       "pos": [
+        -1,
+        0,
+        0
+       ],
+       "rot": 200,
+       "speed": 0.6
+      },
+      {
+       "at": 0.6,
+       "pos": [
+        -1.4,
+        0,
+        -2
+       ],
+       "anim": "idle",
+       "face": "shock"
+      }
+     ]
+    }
+   ],
+   "rats": {
+    "n": 0.3,
+    "tailless": 1,
+    "mode": "scurry",
+    "speed": 0.7
+   }
+  },
+  {
+   "id": "tailless",
+   "narration": "Rats, running through the streets. Alive. With no tails.",
+   "set": "oldquarter",
+   "grade": "oqGold",
+   "shot": {
+    "type": "prop",
+    "f": [
+     0,
+     0,
+     -1
+    ],
+    "dist": 6,
+    "h": 0.9,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      1.6,
+      0,
+      -5
+     ],
+     "anim": "shock",
+     "face": "shock",
+     "rot": 20
+    }
+   ],
+   "rats": {
+    "n": 0.85,
+    "tailless": 1,
+    "mode": "scurry",
+    "speed": 0.8
+   },
+   "cut": "zoom",
+   "emph": [
+    "no",
+    "tails"
+   ],
+   "fx": {
+    "speed": 0.25
+   },
+   "dof": {
+    "amt": 1.0,
+    "on": "official"
+   }
+  },
+  {
+   "id": "release",
+   "narration": "Hunters were cutting off the tails, cashing them in, and letting the rats go. Free rats make more rats.",
+   "set": "oldquarter",
+   "grade": "oqDay",
+   "shot": {
+    "type": "medium",
+    "f": "catcher",
+    "az": -25,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "catcher",
+     "pos": [
+      0,
+      0,
+      -2
+     ],
+     "anim": "present",
+     "face": "sly",
+     "rot": 0,
+     "propL": "trap",
+     "prop": "tails"
+    },
+    {
+     "id": "catcher2",
+     "pos": [
+      -2.4,
+      0,
+      -3
+     ],
+     "anim": "laugh",
+     "face": "laugh",
+     "rot": 40
+    }
+   ],
+   "rats": {
+    "n": 0.4,
+    "tailless": 1,
+    "mode": "scurry",
+    "speed": 0.7
+   },
+   "emph": [
+    "free",
+    "more"
+   ]
+  },
+  {
+   "id": "farms",
+   "narration": "Outside the city, some people simply started breeding them.",
+   "set": "ratfarm",
+   "grade": "farmDusk",
+   "shot": {
+    "type": "wide",
+    "f": [
+     0,
+     0,
+     2
+    ],
+    "dist": 20,
+    "h": 7,
+    "move": "crane",
+    "rise": -3
+   },
+   "actors": [
+    {
+     "id": "farmer",
+     "pos": [
+      0,
+      0,
+      4.6
+     ],
+     "anim": "count",
+     "face": "smug",
+     "rot": 0,
+     "prop": "money"
+    }
+   ],
+   "rats": {
+    "caged": 1,
+    "free": 0
+   },
+   "fx": {
+    "dust": 0.5,
+    "rays": 0.6
+   },
+   "cut": "whip",
+   "sfx": [
+    {
+     "type": "whoosh",
+     "at": 0
+    }
+   ]
+  },
+  {
+   "id": "paycheck",
+   "narration": "Every rat was a future paycheck.",
+   "set": "ratfarm",
+   "grade": "farmDusk",
+   "shot": {
+    "type": "close",
+    "f": "farmer",
+    "az": -20,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "farmer",
+     "pos": [
+      0,
+      0,
+      4.6
+     ],
+     "anim": "count",
+     "face": "sly",
+     "rot": 0,
+     "prop": "money"
+    }
+   ],
+   "rats": {
+    "caged": 1
+   },
+   "fx": {
+    "coins": 0.25
+   },
+   "emph": [
+    "paycheck"
+   ]
+  },
+  {
+   "id": "cancel",
+   "narration": "The bounty was quietly cancelled.",
+   "set": "office",
+   "grade": "officeTeal",
+   "shot": {
+    "type": "medium",
+    "f": "official",
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      0,
+      0,
+      -1.3
+     ],
+     "anim": "rage",
+     "face": "rage",
+     "rot": 0
+    }
+   ],
+   "world": {
+    "tails": 1
+   },
+   "fx": {
+    "veins": 0.7,
+    "impact": 0.12,
+    "crack": 0.12
+   },
+   "cut": "flash",
+   "flashCol": "#ff7a7a",
+   "sfx": [
+    {
+     "type": "stamp",
+     "at": 0.12
+    }
+   ]
+  },
+  {
+   "id": "plague",
+   "narration": "And in 1903, plague still reached Hanoi.",
+   "set": "oldquarter",
+   "grade": "oqNight",
+   "shot": {
+    "type": "wide",
+    "f": [
+     0,
+     0,
+     -2
+    ],
+    "dist": 15,
+    "h": 3,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      0,
+      0,
+      -2
+     ],
+     "anim": "dejected",
+     "face": "sad",
+     "rot": 0
+    }
+   ],
+   "rats": {
+    "n": 0.5,
+    "mode": "scurry",
+    "speed": 0.6,
+    "tailless": 0.4
+   },
+   "fx": {
+    "rain": 0.7,
+    "dust": 0.1
+   },
+   "cut": "ghost",
+   "sfx": [
+    {
+     "type": "rumble",
+     "at": 0
+    }
+   ]
+  },
+  {
+   "id": "lesson",
+   "narration": "Pay people for rat tails, and you get rat tails. Not fewer rats.",
+   "set": "oldquarter",
+   "grade": "oqGold",
+   "shot": {
+    "type": "medium",
+    "f": [
+     0,
+     0,
+     -2
+    ],
+    "dist": 12,
+    "move": "push"
+   },
+   "actors": [
+    {
+     "id": "official",
+     "pos": [
+      0,
+      0,
+      -2
+     ],
+     "anim": "shrug",
+     "face": "tired",
+     "rot": 0
+    },
+    {
+     "id": "clerk",
+     "pos": [
+      -2.5,
+      0,
+      -2.5
+     ],
+     "anim": "facepalm",
+     "face": "tired",
+     "rot": 15
+    },
+    {
+     "id": "catcher",
+     "pos": [
+      2.6,
+      0,
+      -2.4
+     ],
+     "anim": "smug",
+     "face": "sly",
+     "rot": -15,
+     "prop": "money"
+    }
+   ],
+   "rats": {
+    "n": 0.6,
+    "tailless": 1,
+    "mode": "mill"
+   },
+   "emph": [
+    "tails",
+    "fewer"
+   ],
+   "irisOut": true,
+   "pad": 0.9
+  }
+ ]
+}

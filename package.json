@@ -1,0 +1,14 @@
+{
+  "name": "story-shorts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Procedural Three.js 3D story-explainer shorts, rendered headless in CI",
+  "scripts": {
+    "render": "node renderer/render.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0",
+    "three": "0.170.0"
+  }
+}

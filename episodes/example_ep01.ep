@@ -1,0 +1,216 @@
+title: Episode 1 | The Fern Incident
+narrator: bf_emma en-gb
+cast: ada=engineer:af_heart, ben=worker:am_michael, cy=boss:bm_george:en-gb
+---
+@zone green
+@world droop=0>1
+N: This is Gerald. Gerald is a fern. And Gerald is about to die of neglect, for the third time this year.
+cy!: Who watered Gerald? Somebody tell me somebody watered Gerald.
+ben?: I thought you were watering Gerald.
+ada_: I was at a conference. Gerald was your responsibility, Cy.
+@world droop=1>0.3
+N: Gerald survives, barely. But in that moment, a very bad idea and a very good idea arrive at the same time.
+cy^: What if the pot watered itself? A little computer that checks the soil and pours water when it is thirsty.
+%big SPROUT | a pot that waters itself
+N: That is the good idea. The bad idea is Cy saying it will ship by spring.
+ada~: We have never built a product. We have a fern, a soldering iron, and a lot of confidence.
+N: Over this series, these three are going to build Sprout from a blinking light to a connected device in thousands of homes.
+N: Along the way, you will learn how real embedded systems are designed, debugged, and shipped. No prior hardware experience required.
+# Chapter One | What Even Is an Embedded System?
+@zone screen
+%clear
+cy: Okay, Ada. Explain it like I am an investor. What is an embedded system?
+ada: It is a computer that is built into something else, to do one job. Nobody thinks of it as a computer.
+%list Computers you never think about
+- Microwave timer
+- Car window controller
+- TV remote
+- Washing machine
+- Smart thermostat
+ada>: Your microwave has one. So does your car door, your remote, and probably your toothbrush.
+ben^: My toothbrush has a computer? It still can't make me floss.
+N: A laptop is a general-purpose machine. You can install anything on it. An embedded system is the opposite: it is purpose-built.
+%table General purpose vs embedded
+- | Laptop | Sprout
+- Job | anything | water plants
+- Memory | gigabytes | kilobytes
+- Power | wall or big battery | small battery
+- Software | apps you install | one program, forever
+ada: The device has one program, written for that exact hardware. When it powers on, that program runs, and it never stops.
+cy?: Kilobytes? My phone wallpaper is bigger than that.
+ada~: Your wallpaper is not responsible for keeping Gerald alive.
+N: The heart of most embedded systems is a microcontroller: a single chip with a processor, memory, and input-output pins all packed together.
+%blocks Inside a microcontroller cols=3
+- CPU core > Flash:fetch code, RAM:data
+- Flash (program)
+- RAM (variables)
+- GPIO pins > CPU core:<>
+- Timers > CPU core
+- ADC (analog in) > CPU core
+ada>: The processor reads instructions from flash, keeps its working data in RAM, and talks to the world through pins and peripherals.
+ben: Peripherals are like little helpers built into the chip. A timer counts. An analog converter measures voltages. A serial port talks to other chips.
+N: Sprout needs to sense the soil, decide, and act. Sense, decide, act. Almost every embedded system is some version of that loop.
+%blocks Sprout, version zero
+- Soil sensor > Microcontroller:moisture
+- Microcontroller > Pump:on / off, LED:status
+- Pump
+- LED
+cy^: Sense, decide, act. I can sell that. I can put that on a hoodie.
+N: There is one more ingredient that makes embedded work feel different: time. Many devices must respond not just correctly, but on time.
+%table How strict is on time?
+- Device | Deadline | If late
+- Airbag | milliseconds | disaster
+- Drum machine | a few ms | sounds wrong
+- Sprout | minutes | thirsty fern
+ada: An airbag that inflates one second late is not slow, it is wrong. That is a hard real-time system. Late equals failure.
+ben: A music gadget that slips a few milliseconds sounds sloppy, but nobody gets hurt. That is softer.
+N: Sprout is gentle. If it waters a minute late, Gerald will not notice. But the same chip may also need to stop the pump the instant the water tank runs dry. Even gentle devices have a few sharp deadlines.
+ada>: So, part of the job is finding which parts of the system are truly time critical, and protecting those first.
+cy?: And the rest?
+ada~: The rest can wait politely in line.
+N: Embedded systems also tend to run unattended for years. Nobody reboots a thermostat for fun. The code must recover from glitches on its own, because there is rarely a human nearby to press a button.
+# Chapter Two | Building Code for Another Computer
+@zone bench
+%clear
+N: The next morning, Ben has a development board on the bench, a bare circuit board with a microcontroller on it. Ada has a laptop. Cy has a coffee.
+cy?: So you write the program on the laptop and it just... runs on the little board?
+ada: Not quite. The laptop and the chip speak different machine languages. So we cross-compile.
+%blocks Cross-compiling
+- C source (on laptop) > Cross compiler:compile
+- Cross compiler > Binary image:link
+- Binary image > Flash on chip:program
+- Flash on chip
+ada>: We write C on the laptop. A cross compiler turns it into instructions for the chip, not for the laptop. Then a programmer tool copies that image into the chip's flash.
+N: That separation matters. The machine that builds the code is not the machine that runs it. Your laptop is the host. The board is the target.
+ben: And the target does not have a screen, or a keyboard, or a file system. It barely has an opinion.
+N: Building the image takes a few steps. The compiler turns each C file into an object file. The linker stitches them together and decides exactly where every function and variable lives in the chip's memory.
+%memory Where the linker puts things
+- 0x2000_2000 | Stack | 1 | grows down
+- 0x2000_0000 | Variables | 1 | RAM
+- 0x0800_4000 | Constants | 1 | flash
+- 0x0800_0000 | Code + vectors | 2 | flash
+ada: Then there is startup code, a few lines that run before main. They set up the stack, copy starting values into RAM, and zero the rest. Only then does your program begin.
+ben?: So main is not really the beginning?
+ada: Main is the beginning of your story. The chip had a whole prologue you never saw.
+N: The linker can also write a map file, a report of where everything ended up and how big it is. It looks boring. Later in this series, it will save the day.
+N: Why C? It is close to the hardware, it is small, and nearly every chip vendor supports it. C plus plus, Rust, and even small Python variants exist too. The trade-off is always control versus convenience.
+%list Choosing a language
+- C: small, direct, everywhere
+- C++: more structure, use carefully
+- Rust: safety, growing support
+- MicroPython: fast to prototype, needs more memory
+cy~: Pick whatever ships fastest.
+ada~: That is not how languages work, but I will take it as a vote for C.
+# Chapter Three | Debugging Without a Screen
+@zone bench
+N: Ada flashes the first program. Nothing happens. No error message. No crash dialog. Just a board, sitting there, doing nothing in particular.
+ben!: Is it broken? Did we break it? It cost nine dollars!
+ada: This is the part nobody tells you about. When embedded code fails, it fails silently. There is no screen to print to.
+%list Ways to see inside
+- Blink an LED
+- Print over a serial port
+- Use a hardware debugger
+- Measure pins with a meter or scope
+ada>: So we give ourselves windows. First, an LED. If the light blinks, the code is running. Crude, but it works at three in the morning.
+N: Second, a serial port. The chip sends text, one character at a time, over a wire to the laptop. It is the embedded version of a print statement.
+N: Third, and best, a hardware debugger. It connects to special pins on the chip and lets you pause the processor, step through code line by line, and peek at memory.
+%blocks Debugger setup
+- Laptop (IDE) > Debug probe:USB
+- Debug probe > Target chip:SWD / JTAG
+- Target chip
+ada: With a debugger, I can stop the world and ask: what is in this variable right now? Which line are we on?
+cy?: Then why does anybody blink LEDs?
+ada: Because debuggers change timing. Stop a chip that is controlling a motor, and the motor does not stop with it. Sometimes you need to watch without touching.
+N: Ada steps through the code and finds it in four minutes. The program was waiting for a button that does not exist yet.
+ben~: In fairness, I did say I would add the button tomorrow.
+N: The lesson is bigger than a missing button. Debugging embedded systems is detective work. You form a theory, design a test that could prove it wrong, and run it.
+%list Detective method
+- Reproduce the problem reliably
+- Form one theory
+- Test it with a measurement
+- Change one thing at a time
+- Write down what you learned
+ada>: The worst thing you can do is change five things at once. If it starts working, you do not know why, and it will break again on demo day.
+ben: And when it is a hardware problem, the code can be perfect and still fail. A loose wire looks exactly like a software bug.
+cy~: So when something breaks, I should blame Ben's wires.
+ben~: When something breaks, you should bring snacks and stay out of the way.
+# Chapter Four | Living Within Your Means
+@zone screen
+N: Embedded engineers work under constraints that would make a web developer weep. Memory is measured in kilobytes. Every component costs money. And everything burns power.
+%table Sprout's budget
+- Resource | Have | Need
+- Flash | 64 KB | code + data
+- RAM | 8 KB | variables + stack
+- Cost | 3 dollars | for all the parts
+- Battery | 2 AA | six months, ideally
+cy!: Three dollars? I told the investors three dollars? Who let me talk to investors?
+ada: If you build a hundred thousand units, every cent on the parts list is a thousand dollars. So we pick the smallest chip that does the job, with some room to grow.
+N: Room to grow is the trick. Pick a chip with exactly enough memory, and the first new feature will not fit. Pick one far too big, and you pay for silicon you never use.
+%chart Cost vs headroom
+- bar Chip price (cents): 40,65,90,150,280
+- line Memory (KB): 16,32,64,128,256
+xl Tiny,Small,Medium,Large,Huge
+ben: Power is the other budget. A chip that runs flat out will drain two batteries in days. One that naps between jobs can last months.
+N: These constraints shape every decision in the series ahead: how we structure code, how we talk to sensors, how we handle math, even when the chip is allowed to be awake.
+ada: There is a hidden cost too: engineering time. A bigger chip costs more per unit, but squeezing code into a tiny chip can cost months of effort.
+N: For a product that sells a few hundred units, engineering time dominates, so a roomier chip is usually smarter. For millions of units, every cent of parts wins. Know which kind of product you are building.
+# Chapter Five | Principles to Steer By
+@zone screen
+ada: Before we write real code, I want us to agree on a few rules. Not laws. Habits that save you at three in the morning.
+%list Habits that save you
+- Make it testable from day one
+- Keep modules small and separate
+- Write down why, not just what
+- Expect the hardware to change
+- Check every assumption on the real board
+ada>: First, design so pieces can be tested on their own, even on the laptop, without the board.
+N: Second, keep the code in separate modules with clear jobs. The part that reads the soil should not care how the pump works.
+ben: Third, document the why. Six months from now, nobody remembers why there is a mysterious delay of twelve milliseconds in the pump code.
+ada: Fourth, the hardware will change. Boards get revised. Chips go out of stock. Code that is tied to one exact pin layout will hurt.
+cy~: Fifth, ship by spring.
+ada~: Fifth, measure on the real board. A simulation is a hypothesis. The board is the truth.
+# Chapter Six | Prototypes and Maker Boards
+@zone bench
+N: Every product starts as a prototype. And prototypes start on development boards: cheap, friendly boards with a microcontroller, a USB port, and pins broken out for experiments.
+%list Prototype ladder
+- Dev board + jumper wires
+- Breadboard with real sensors
+- Custom board, version one
+- Custom board, the one that ships
+ben^: Behold. A dev board, a moisture probe, a pump from an aquarium shop, and forty jumper wires.
+N@cy!: It looks like a bowl of spaghetti that learned electricity.
+ada: That is fine. A prototype answers questions fast. Does the sensor read wet and dry soil differently? Can this pump lift water high enough?
+N: The trap is falling in love with the prototype. Hobby boards are great for learning, but a product needs its own board: smaller, cheaper, and designed to survive real homes.
+ben: So we use the dev board to learn, and plan for our own board later. And we write code that will survive the move.
+ada>: Which is exactly what the next episode is about: architecture. How to organize code so the hardware can change underneath it.
+# Chapter Seven | Hardware and Software, Together
+@zone screen
+%blocks Two schedules, one product
+- Hardware design > Board arrives:weeks
+- Software design > Code ready:weeks
+- Board arrives > Bring-up
+- Code ready > Bring-up
+- Bring-up
+N: One last truth before we go. In an embedded team, hardware and software are built in parallel, and they meet in the middle. That meeting is called bring-up, and it is rarely calm.
+ben: Boards take weeks to manufacture. If Ada waits for my board before writing code, we lose a month.
+ada: So I write code against a plan: which pins, which sensors, which chip. I test it on the dev board and on my laptop. When the real board arrives, most of the code is already waiting.
+N: That only works if the two halves talk constantly. A pin that moves on the schematic must move in the code. A sensor that changes must change the driver.
+cy^: So the secret to hardware startups is... talking to each other?
+ada~: Shocking, I know. Also, schedules. Hardware is always later than the plan.
+# Recap | Sense, Decide, Act
+@zone green
+@world droop=0.3>0
+%list Today we learned
+- Embedded = a computer inside a product, doing one job
+- Microcontroller = CPU + flash + RAM + peripherals
+- Cross-compile on a host, run on a target
+- Debug with LEDs, serial prints, and debuggers
+- Respect the budgets: memory, cost, power
+N: So, a recap. An embedded system is a dedicated computer hiding inside a product.
+N: Its heart is a microcontroller. We write code on a host and cross-compile it for the target. We debug through LEDs, serial ports, and hardware debuggers, because there is no screen.
+N: And everything lives inside budgets: memory, money, and power. Good habits, like testable modules and measuring on the real board, keep the project sane.
+N: We also met real time: some deadlines are absolute, most are not, and finding the sharp ones is part of the design. And we saw that hardware and software must grow together, meeting at bring-up.
+cy^: And by spring, Gerald waters himself!
+ben~: Gerald is a fern, Cy. Gerald does not do anything himself.
+ada: Not yet. Next time, we draw the map before we build the city.
+N@ada^: See you in the lab.
