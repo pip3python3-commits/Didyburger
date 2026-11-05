@@ -154,15 +154,18 @@ class Hose {
   update(a, b, mid) {
     const { segs, rad, radius, pos } = this;
     const c = this._m.copy(mid).multiplyScalar(2).sub(this._a.copy(a).add(b).multiplyScalar(0.5));
+    const N = this._n, B = this._bn, Tn = this._t, Pp = this._p;
     for (let i = 0; i <= segs; i++) {
       const u = i / segs, iu = 1 - u;
-      this._p.set(iu * iu * a.x + 2 * iu * u * c.x + u * u * b.x, iu * iu * a.y + 2 * iu * u * c.y + u * u * b.y, iu * iu * a.z + 2 * iu * u * c.z + u * u * b.z);
-      this._t.set(2 * iu * (c.x - a.x) + 2 * u * (b.x - c.x), 2 * iu * (c.y - a.y) + 2 * u * (b.y - c.y), 2 * iu * (c.z - a.z) + 2 * u * (b.z - c.z)).normalize();
-      const ref = Math.abs(this._t.y) > 0.9 ? this._bn.set(1, 0, 0) : this._bn.set(0, 1, 0);
-      this._n.crossVectors(this._t, ref).normalize(); this._bn.crossVectors(this._t, this._n).normalize();
+      Pp.set(iu * iu * a.x + 2 * iu * u * c.x + u * u * b.x, iu * iu * a.y + 2 * iu * u * c.y + u * u * b.y, iu * iu * a.z + 2 * iu * u * c.z + u * u * b.z);
+      Tn.set(2 * iu * (c.x - a.x) + 2 * u * (b.x - c.x), 2 * iu * (c.y - a.y) + 2 * u * (b.y - c.y), 2 * iu * (c.z - a.z) + 2 * u * (b.z - c.z));
+      if (Tn.lengthSq() < 1e-8) Tn.set(0, 1, 0); Tn.normalize();
+      if (i === 0) { const ref = Math.abs(Tn.x) < 0.8 ? B.set(1, 0, 0) : B.set(0, 0, 1); N.crossVectors(Tn, ref).normalize(); }
+      else { N.addScaledVector(Tn, -N.dot(Tn)); if (N.lengthSq() < 1e-8) N.set(0, 0, 1); N.normalize(); }   // parallel transport: carry the previous normal
+      B.crossVectors(Tn, N).normalize();
       for (let j = 0; j < rad; j++) {
         const th = (j / rad) * Math.PI * 2, cs = Math.cos(th) * radius, sn = Math.sin(th) * radius, o = (i * rad + j) * 3;
-        pos[o] = this._p.x + this._n.x * cs + this._bn.x * sn; pos[o + 1] = this._p.y + this._n.y * cs + this._bn.y * sn; pos[o + 2] = this._p.z + this._n.z * cs + this._bn.z * sn;
+        pos[o] = Pp.x + N.x * cs + B.x * sn; pos[o + 1] = Pp.y + N.y * cs + B.y * sn; pos[o + 2] = Pp.z + N.z * cs + B.z * sn;
       }
     }
     this.geo.attributes.position.needsUpdate = true; this.geo.computeVertexNormals();
@@ -399,19 +402,29 @@ export class Character {
     const bodyM = new THREE.Matrix4().compose(this.body.position, new THREE.Quaternion().setFromEuler(this.body.rotation), this.body.scale);
     const V = (a) => new THREE.Vector3(a[0], a[1], a[2]);
     const sL = V([-0.37, 2.2, 0]).applyMatrix4(bodyM), sR = V([0.37, 2.2, 0]).applyMatrix4(bodyM);
-    const hipY = 1.4 - crouch;
-    const hL = V([-0.17, hipY, pose.sit ? 0.15 : 0]), hR = V([0.17, hipY, pose.sit ? 0.15 : 0]);
+    // hips ride with the body (bob, lean, crouch, squash) so the torso never separates from the legs
+    const hL = V([-0.17, PV, pose.sit ? 0.15 : 0]).applyMatrix4(bodyM), hR = V([0.17, PV, pose.sit ? 0.15 : 0]).applyMatrix4(bodyM);
     const handL = V(pose.hL), handR = V(pose.hR);
     if (crouch) { handL.y -= crouch * 0.6; handR.y -= crouch * 0.6; }
-    const fL = V(pose.fL), fR = V(pose.fR); fL.y += pose.liftL + 0.07; fR.y += pose.liftR + 0.07;
-    const reach = (a, b, L, out, fwd, hose) => {
-      const d = a.distanceTo(b); if (d > L) b.copy(a).add(b.clone().sub(a).setLength(L));
-      const mid = a.clone().add(b).multiplyScalar(0.5);
-      const slack = Math.sqrt(Math.max(0, (L / 2) ** 2 - (Math.min(d, L) / 2) ** 2));
-      hose.update(a, b, mid.add(new THREE.Vector3(out, 0, fwd).normalize().multiplyScalar(slack * 1.05 + 0.02)));
+    const air = Math.max(0, pose.y - 0.2);                        // airborne height (jump/cheer): feet leave the ground with the body
+    const fL = V(pose.fL), fR = V(pose.fR); fL.y += pose.liftL + 0.07 + air * 0.92; fR.y += pose.liftR + 0.07 + air * 0.92;
+    if (Math.abs(fL.x - fR.x) < 0.12) { fL.x -= 0.06; fR.x += 0.06; }      // keep the feet from crossing
+    const LEG = 1.5, ARM = 1.55;
+    const reach = (a, b, L, out, fwd, hose, maxSlack) => {
+      const dir = b.clone().sub(a), d = dir.length();
+      if (d > L) { b.copy(a).add(dir.setLength(L)); }
+      const axis = b.clone().sub(a).normalize();
+      // knee/elbow bulge direction = preferred direction made perpendicular to the limb axis
+      const pref = new THREE.Vector3(out, 0, fwd).normalize();
+      let bend = pref.sub(axis.clone().multiplyScalar(pref.dot(axis)));
+      if (bend.lengthSq() < 1e-4) bend = new THREE.Vector3(1, 0, 0).sub(axis.clone().multiplyScalar(axis.x));
+      bend.normalize();
+      const dd = Math.min(d, L), slack = Math.min(maxSlack, Math.sqrt(Math.max(0, (L / 2) ** 2 - (dd / 2) ** 2)));
+      const mid = a.clone().add(b).multiplyScalar(0.5).addScaledVector(bend, slack * 1.05 + 0.02);
+      hose.update(a, b, mid);
     };
-    reach(sL, handL, 1.55, -0.7, -0.55, this.armL); reach(sR, handR, 1.55, 0.7, -0.55, this.armR);
-    reach(hL, fL, 1.5, -0.15, 0.95, this.legL); reach(hR, fR, 1.5, 0.15, 0.95, this.legR);
+    reach(sL, handL, ARM, -0.7, -0.55, this.armL, 0.7); reach(sR, handR, ARM, 0.7, -0.55, this.armR, 0.7);
+    reach(hL, fL, LEG, -0.15, 0.95, this.legL, 0.4); reach(hR, fR, LEG, 0.15, 0.95, this.legR, 0.4);
     this.handL.position.copy(handL); this.handR.position.copy(handR);
     this.footL.position.copy(fL); this.footR.position.copy(fR);
     this.footL.position.y = Math.max(0.07, fL.y - 0.02); this.footR.position.y = Math.max(0.07, fR.y - 0.02);
