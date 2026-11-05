@@ -9,7 +9,8 @@ rd = lambda p: open(os.path.join(ROOT, p), encoding="utf8").read()
 
 rig, grades, tts, shots = rd("renderer/src/rig.js"), rd("renderer/src/grades.js"), rd("pipeline/tts.py"), rd("renderer/src/shots.js")
 ANIMS = set(re.findall(r"^  (\w+)\(t", rig[rig.index("const ANIMS"):], re.M))
-FACES = set(re.findall(r"^  (\w+):\s+\{ eyes:", rig, re.M)) | {"neutral"}
+_fp = rig[rig.index("const FACE_PRESETS"):]; _fp = _fp[:_fp.index("\n};")]
+FACES = set(re.findall(r"^  (\w+):\s+\{", _fp, re.M)) | {"neutral"}
 TYPES = set(re.findall(r"^  (\w+):\s+\{ torso", rig, re.M))
 SKINS = set(re.findall(r"(s\d|white): '#", rig))
 GESTS = set(re.findall(r"^  (\w+):\s+\{ h[LR]:", rig, re.M))

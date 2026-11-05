@@ -1,7 +1,7 @@
 // Timeline driver: window.init(timeline) then window.renderFrame(t) -> draws one deterministic frame.
 import * as THREE from 'three';
 import { buildWorld } from './world.js';
-import { Character } from './rig.js';
+import { Character, faceTarget, springFace, FACE_INDEX } from './rig.js';
 import { createLook } from './look.js';
 import { createFX } from './fx.js';
 import { GRADES } from './grades.js';
@@ -17,7 +17,7 @@ const lerp = (a, b, f) => a + (b - a) * f;
 const lerp3 = (a, b, f) => [lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f)];
 const WORLD_DEFAULT = { paint: 0, leak: 0, swell: 0, burst: 0, waveZ: -300, flood: 0, aftermath: 0, thermo: 0, rivets: 0, droop: 0, protoDroop: 0 };
 const GESTS = ['palm', 'both', 'chop', 'point', 'count', 'palm', 'chest', 'both'];
-const DOF_BY_SHOT = { close: 1.4, prop: 1.6, medium: 0.7, low: 0.5, wide: 0.18, high: 0.12 };
+const DOF_BY_SHOT = { close: 0.9, prop: 1.2, medium: 0.7, low: 0.5, wide: 0.18, high: 0.12 };
 
 let S = null;
 
@@ -112,6 +112,31 @@ function speech(beat, lt) {
   return { open: clamp01(open), vowel, gAmp: beat.gestures === false ? 0 : gAmp, gest, nod, raise, evS: ev ? ev.s : -9 };
 }
 
+
+// ---------------------------------------------------------------- face parameters over time (springy, deterministic)
+// targetAt(tt): the face an actor "wants" at absolute time tt (expression of that beat + lip-sync + emphasis brow pops);
+// springFace() convolves it with a damped-spring response so every change overshoots and settles.
+function faceVec(id, t, curName) {
+  const KI = FACE_INDEX, tl = S.timeline;
+  const targetAt = (tt) => {
+    tt = Math.max(0, tt);
+    const bi = findBeat(tl, tt), beat = tl.beats[bi], lt = Math.max(0, tt - beat.start), p = clamp01(lt / beat.dur);
+    const a = (beat.actors || []).find((x) => x.id === id);
+    let name = curName;
+    if (a) { name = 'neutral'; for (const k of a.tl) if (k.at <= p + 1e-9 && k.face) name = k.face; }
+    const v = faceTarget(name).slice();
+    if (a && (beat.talk || beat.speaker) === id) {
+      const sp = speech(beat, lt), o = sp.open;
+      if (sp.vowel === 'oh') { v[KI.mW] *= 0.55; v[KI.mOpen] += o * 62; }
+      else if (sp.vowel === 'ee') { v[KI.mW] *= 1.18; v[KI.mOpen] += o * 30; }
+      else { v[KI.mW] *= 0.92; v[KI.mOpen] += o * 70; }
+      v[KI.bLy] += 9 * sp.gAmp + (sp.raise ? 10 : 0); v[KI.bRy] += 9 * sp.gAmp + (sp.raise ? 10 : 0);   // brows pop on stressed words
+    }
+    return v;
+  };
+  return springFace(targetAt, t);
+}
+
 // stage the scene for time t (camera, world, actors, light); returns info about the beat
 function stage(t) {
   const { scene, camera, hemi, sun, fill, world, chars, timeline, wstates, keys, fovScale } = S;
@@ -168,7 +193,8 @@ function stage(t) {
     else if (talkId && a.id === talkId) { const others = Object.keys(placed).filter((k) => k !== talkId); if (others.length && Math.floor((lt + 0.6) / 2.6) % 2 === 0) lookAt = placed[others[0]]; }
     const talk = a.id === talkId ? sp : null;
     const listen = sp && a.id !== talkId ? { nod: Math.max(0, Math.sin(clamp01((lt - sp.evS - 0.25) / 0.45) * Math.PI)) * 0.12 } : null;
-    c.apply({ pos: [pp[0] + off, pp[1], pp[2]], rotY: rot * Math.PI / 180, scale, anim, prevAnim, animT, face, t, speed, camPos, lookAt, talk, listen, prop, propL, enter });
+    const facep = faceVec(a.id, t, face);
+    c.apply({ pos: [pp[0] + off, pp[1], pp[2]], rotY: rot * Math.PI / 180, scale, anim, prevAnim, animT, face, facep, t, speed, camPos, lookAt, talk, listen, prop, propL, enter });
   }
   for (const [id, c] of Object.entries(S.chars)) if (!used.has(id)) c.hide();
   S.fx.update(beat.fx, t, [tgt[0] + off, tgt[1] - 3, tgt[2]], lt, beat.dur);
@@ -196,8 +222,8 @@ window.renderFrame = function (t) {
   const dofAmt = beat.dof?.amt ?? (beat.shot ? DOF_BY_SHOT[beat.shot.type || 'medium'] ?? 0.5 : 0.3);
   let focusP = tgt;
   const fid = beat.dof?.on || (beat.shot && typeof beat.shot.f === 'string' ? beat.shot.f : null);
-  if (fid && S.chars[fid]) { const r = S.chars[fid].root.position; focusP = [r.x, r.y + 2.6, r.z]; }
-  else { let best = 1e9; for (const a of beat.actors || []) { const r = S.chars[a.id]?.root.position; if (!r) continue; const dd = Math.hypot(r.x - tgt[0], r.z - tgt[2]); if (dd < best) { best = dd; focusP = [r.x, r.y + 2.6, r.z]; } } }
+  if (fid && S.chars[fid]) { const r = S.chars[fid].root.position, sc = S.chars[fid].root.scale.y; focusP = [r.x, r.y + 3.0 * sc, r.z]; }
+  else { let best = 1e9; for (const a of beat.actors || []) { const r = S.chars[a.id]?.root.position; if (!r) continue; const dd = Math.hypot(r.x - tgt[0], r.z - tgt[2]); if (dd < best) { best = dd; focusP = [r.x, r.y + 3.0 * S.chars[a.id].root.scale.y, r.z]; } } }
   U.dof.value = dofAmt; U.focus.value = Math.hypot(camera.position.x - focusP[0], camera.position.y - focusP[1], camera.position.z - focusP[2]);
   // light shafts: from the sun or a set light
   U.rays.value = FX.rays ?? 0;
@@ -232,4 +258,5 @@ window.renderFrame = function (t) {
   return { beat: beat.id, p: lt / beat.dur };
 };
 
+window.__dbg = { faceVec, speech: (id, t) => { const tl = S.timeline, b = tl.beats[findBeat(tl, t)]; return speech(b, t - b.start); } };
 window.ready = true;

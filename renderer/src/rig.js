@@ -26,118 +26,123 @@ function addWithOutline(parent, mesh, thick = 1.05) {
   return mesh;
 }
 
-// ------------------------------------------------------------------ face layers (transparent canvases on shells)
-// Sphere UV: u = 0.25 is the +Z (front) meridian. Canvas 1024x512 -> front at x = 256.
-const CX = 256, CY = 250, EX = 42, EY = CY - 14;
-const cache = new Map();
-function canvasTexture(draw) {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
-  const g = c.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round'; draw(g);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
-}
-const INKS = '#1d1218';
-function strokeLine(g, x0, y0, x1, y1, w) { g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
-function strokeCurve(g, x0, y0, qx, qy, x1, y1, w) { g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(qx, qy, x1, y1); g.stroke(); }
-
-const EXPR = {
-  neutral: { eyes: 'open', brows: 'flat', mouth: 'line' },
-  smile:   { eyes: 'open', brows: 'up', mouth: 'smile' },
-  grin:    { eyes: 'happy', brows: 'up', mouth: 'grin' },
-  smug:    { eyes: 'lid', brows: 'smug', mouth: 'smirk' },
-  shock:   { eyes: 'wide', brows: 'high', mouth: 'O' },
-  panic:   { eyes: 'wide', brows: 'high', mouth: 'scream', drops: 2 },
-  worried: { eyes: 'open', brows: 'worry', mouth: 'wavy', drops: 1 },
-  sweat:   { eyes: 'lid', brows: 'worry', mouth: 'wavy', drops: 3 },
-  sad:     { eyes: 'open', brows: 'worry', mouth: 'frown' },
-  angry:   { eyes: 'angry', brows: 'angry', mouth: 'frown' },
-  rage:    { eyes: 'angry', brows: 'angry', mouth: 'teeth' },
-  laugh:   { eyes: 'happy', brows: 'up', mouth: 'grin' },
-  think:   { eyes: 'lid', brows: 'think', mouth: 'side' },
-  sly:     { eyes: 'lid', brows: 'smug', mouth: 'smile' },
-  tired:   { eyes: 'lid', brows: 'worry', mouth: 'line' },
+// ------------------------------------------------------------------ face: live-drawn, hand-brushed, springy
+// The face is NOT a swapped image. Every frame it is brushed onto a canvas (thick marker strokes, solid-blob eyes, tapered brows,
+// a thick mouth line, hand-drawn "boil" jitter) from ~22 continuous parameters. main.js passes each actor's parameters through a
+// damped-spring filter (springFace) so brows, eyes and mouth overshoot and settle when the expression changes: bouncy and fluid, and still
+// deterministic (a pure function of time). The canvas covers only the front patch of the head (phi +-75 deg, theta +-43 deg).
+const FW = 720, FH = 416, CX = 360, CY = 208;
+export const FACE_KEYS = ['bLy', 'bLa', 'bLc', 'bRy', 'bRa', 'bRc', 'eSx', 'eSy', 'eLid', 'eHappy', 'eY', 'eGap', 'eAsym', 'mOpen', 'mW', 'mCurve', 'mSkew', 'mTeeth', 'mWob', 'mY', 'sweat', 'blush'];
+export const FACE_INDEX = Object.fromEntries(FACE_KEYS.map((k, i) => [k, i]));
+// brow y = px up, a = tilt (+ raises the inner end: worry, - lowers it: anger), c = arch px; eye lid 0..1 closes from the top; mouth open = px height
+const FACE_NEUTRAL = { bLy: 6, bLa: -0.04, bLc: 10, bRy: 14, bRa: 0.05, bRc: 14, eSx: 1, eSy: 1, eLid: 0.16, eHappy: 0, eY: 0, eGap: 0, eAsym: 0.06, mOpen: 0, mW: 36, mCurve: 0, mSkew: 3, mTeeth: 0, mWob: 0, mY: 0, sweat: 0, blush: 0 };
+const FACE_PRESETS = {
+  neutral: {},
+  smile:   { bLy: 16, bRy: 22, bLc: 14, bRc: 16, eLid: 0, mW: 46, mCurve: 22, mSkew: 0 },
+  grin:    { bLy: 22, bRy: 26, bLc: 16, bRc: 18, eLid: 0, eHappy: 0.9, mOpen: 20, mW: 54, mCurve: 18, mSkew: 0, mTeeth: 1 },
+  smug:    { bLy: -2, bLa: -0.06, bLc: 2, bRy: 26, bRa: 0.1, bRc: 22, eLid: 0.5, mW: 38, mCurve: 8, mSkew: 20 },
+  shock:   { bLy: 36, bRy: 40, bLc: 16, bRc: 18, eSx: 1.55, eSy: 1.75, eLid: 0, mOpen: 34, mW: 18, mCurve: 0, mSkew: 0 },
+  panic:   { bLy: 40, bRy: 40, bLa: 0.4, bRa: 0.4, bLc: 8, bRc: 8, eSx: 1.6, eSy: 1.85, eLid: 0, mOpen: 58, mW: 40, mCurve: -22, sweat: 2 },
+  worried: { bLy: 22, bRy: 22, bLa: 0.42, bRa: 0.42, bLc: 4, bRc: 4, eLid: 0, mW: 38, mCurve: 0, mWob: 1, sweat: 1 },
+  sweat:   { bLy: 18, bRy: 20, bLa: 0.4, bRa: 0.4, eLid: 0.4, mW: 40, mWob: 1, sweat: 3 },
+  sad:     { bLy: 22, bRy: 22, bLa: 0.5, bRa: 0.5, eLid: 0.25, eSy: 0.95, mW: 34, mCurve: -20 },
+  angry:   { bLy: -6, bRy: -4, bLa: -0.5, bRa: -0.5, bLc: 0, bRc: 0, eLid: 0.35, mW: 36, mCurve: -12 },
+  rage:    { bLy: -12, bRy: -10, bLa: -0.62, bRa: -0.62, eSx: 1.12, eLid: 0.3, mOpen: 22, mW: 46, mCurve: -10, mTeeth: 1 },
+  laugh:   { bLy: 24, bRy: 28, bLc: 16, bRc: 18, eLid: 0, eHappy: 1, mOpen: 38, mW: 56, mCurve: 14, mTeeth: 0.6 },
+  think:   { bLy: 30, bLa: 0.18, bLc: 14, bRy: 2, bRa: -0.12, bRc: 4, eLid: 0.3, mW: 22, mCurve: 2, mSkew: -14, mY: 2 },
+  sly:     { bLy: 22, bRy: 8, bLa: 0, bRa: -0.15, eLid: 0.5, mW: 40, mCurve: 14, mSkew: 10 },
+  tired:   { bLy: 8, bRy: 10, bLa: 0.25, bRa: 0.25, eLid: 0.55, mW: 30, mCurve: -3 },
 };
-export const FACES = Object.keys(EXPR);
-
-function eyesTex(extras, eyes, brows, blink, look, raise) {
-  const k = `E|${extras}|${eyes}|${brows}|${blink}|${look}|${raise}`;
-  if (cache.has(k)) return cache.get(k);
-  const t = canvasTexture((g) => {
-    g.strokeStyle = INKS; g.fillStyle = INKS;
-    for (const s of [-1, 1]) {
-      const x = CX + s * EX, y = EY;
-      if (blink || eyes === 'happy') {
-        if (eyes === 'happy' && !blink) strokeCurve(g, x - 17, y + 6, x, y - 16, x + 17, y + 6, 7);
-        else strokeCurve(g, x - 17, y, x, y + 7, x + 17, y, 7);
-        continue;
-      }
-      const rx = eyes === 'wide' ? 21 : 15, ry = eyes === 'wide' ? 25 : 20;
-      g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); g.lineWidth = 4.5; g.stroke();
-      g.fillStyle = INKS;
-      const px = x + look * 5 + (eyes === 'wide' ? 0 : 0), py = y + (eyes === 'lid' ? 5 : 2);
-      g.beginPath(); g.ellipse(px, py, eyes === 'wide' ? 8 : 9, eyes === 'wide' ? 10 : 12, 0, 0, 7); g.fill();
-      g.fillStyle = '#fff'; g.beginPath(); g.arc(px + 3, py - 4, 2.6, 0, 7); g.fill(); g.fillStyle = INKS;
-      if (eyes === 'lid') { g.fillStyle = 'rgba(0,0,0,0)'; g.save(); g.beginPath(); g.ellipse(x, y, rx + 1, ry + 1, 0, 0, 7); g.clip(); g.clearRect(x - rx - 2, y - ry - 2, rx * 2 + 4, ry * 0.85); g.restore(); strokeLine(g, x - rx - 1, y - ry * 0.15, x + rx + 1, y - ry * 0.15, 6); }
-      if (eyes === 'angry') { g.save(); g.beginPath(); g.ellipse(x, y, rx + 1, ry + 1, 0, 0, 7); g.clip(); g.beginPath(); g.moveTo(x - rx - 3, s < 0 ? y - ry - 2 : y - 2); g.lineTo(x + rx + 3, s < 0 ? y - 2 : y - ry - 2); g.lineTo(x + rx + 3, y - ry - 6); g.lineTo(x - rx - 3, y - ry - 6); g.closePath(); g.clearRect(0, 0, 0, 0); g.globalCompositeOperation = 'destination-out'; g.fill(); g.restore(); g.globalCompositeOperation = 'source-over'; }
-    }
-    // brows
-    const by = EY - 36 - raise * 10;
-    for (const s of [-1, 1]) {
-      const x = CX + s * EX; g.strokeStyle = INKS;
-      if (brows === 'flat') strokeLine(g, x - 17, by + 4, x + 17, by + 4, 8);
-      else if (brows === 'up') strokeCurve(g, x - 17, by + 6, x, by - 7, x + 17, by + 6, 8);
-      else if (brows === 'high') strokeCurve(g, x - 19, by - 6, x, by - 20, x + 19, by - 6, 8);
-      else if (brows === 'worry') strokeLine(g, s < 0 ? x - 18 : x + 18, by + 8, s < 0 ? x + 18 : x - 18, by - 6, 8);
-      else if (brows === 'angry') strokeLine(g, s < 0 ? x - 18 : x + 18, by - 6, s < 0 ? x + 18 : x - 18, by + 12, 9);
-      else if (brows === 'smug') { if (s < 0) strokeLine(g, x - 18, by + 8, x + 18, by + 8, 8); else strokeCurve(g, x - 18, by + 4, x, by - 14, x + 18, by - 4, 8); }
-      else if (brows === 'think') { if (s < 0) strokeLine(g, x - 18, by - 4, x + 18, by + 4, 8); else strokeLine(g, x - 18, by + 6, x + 18, by + 6, 8); }
-    }
-    if (extras.includes('glasses')) {
-      g.strokeStyle = INKS; g.lineWidth = 5; g.fillStyle = 'rgba(190,225,255,0.18)';
-      for (const s of [-1, 1]) { g.beginPath(); g.arc(CX + s * EX, EY, 28, 0, 7); g.fill(); g.stroke(); }
-      strokeLine(g, CX - 14, EY, CX + 14, EY, 5);
-    }
-  });
-  cache.set(k, t); return t;
+export const FACES = Object.keys(FACE_PRESETS);
+const faceCache = new Map();
+export function faceTarget(name) {
+  if (!faceCache.has(name)) { const o = { ...FACE_NEUTRAL, ...(FACE_PRESETS[name] || {}) }; faceCache.set(name, FACE_KEYS.map((k) => o[k])); }
+  return faceCache.get(name);
 }
 
-// mouth: base shape (from expression) or a viseme while talking: level 0..3, vowel ah|oh|ee
-function mouthTex(extras, base, level, vowel, drops) {
-  const k = `M|${extras}|${base}|${level}|${vowel}|${drops}`;
-  if (cache.has(k)) return cache.get(k);
-  const t = canvasTexture((g) => {
-    const my = CY + 64; g.strokeStyle = INKS; g.fillStyle = INKS;
-    const fillMouth = (path) => { g.fillStyle = '#3a1218'; path(); g.fill(); g.save(); path(); g.clip();
-      g.fillStyle = '#e8737f'; g.beginPath(); g.ellipse(CX, my + 30, 26, 14, 0, 0, 7); g.fill();
-      g.fillStyle = '#fff'; g.fillRect(CX - 40, my - 30, 80, 13); g.restore(); g.lineWidth = 5; path(); g.stroke(); g.fillStyle = INKS; };
-    if (level > 0) {
-      const smiley = ['smile', 'grin', 'smirk'].includes(base);
-      const w = vowel === 'oh' ? 15 + level * 4 : vowel === 'ee' ? 30 + level * 5 : 22 + level * 5;
-      const h = vowel === 'ee' ? 5 + level * 5 : vowel === 'oh' ? 9 + level * 7 : 7 + level * 8;
-      if (smiley) fillMouth(() => { g.beginPath(); g.moveTo(CX - w - 6, my - 8); g.quadraticCurveTo(CX, my - 2 + h * 0.2, CX + w + 6, my - 8); g.quadraticCurveTo(CX, my + h * 2.1, CX - w - 6, my - 8); g.closePath(); });
-      else if (base === 'frown' || base === 'wavy' || base === 'teeth') fillMouth(() => { g.beginPath(); g.ellipse(CX, my + 6, w, h, 0, 0, 7); });
-      else fillMouth(() => { g.beginPath(); g.ellipse(CX, my + 4, w, h, 0, 0, 7); });
-    } else {
-      const curve = (x0, y0, qx, qy, x1, y1, w = 7) => strokeCurve(g, x0, y0, qx, qy, x1, y1, w);
-      if (base === 'line') strokeLine(g, CX - 18, my, CX + 18, my, 7);
-      else if (base === 'smirk') curve(CX - 24, my + 2, CX + 6, my + 10, CX + 34, my - 12);
-      else if (base === 'smile') curve(CX - 34, my - 6, CX, my + 26, CX + 34, my - 6);
-      else if (base === 'side') curve(CX - 6, my + 2, CX + 14, my + 6, CX + 30, my - 4);
-      else if (base === 'frown') curve(CX - 28, my + 14, CX, my - 12, CX + 28, my + 14);
-      else if (base === 'wavy') { g.lineWidth = 6; g.beginPath(); g.moveTo(CX - 28, my + 4); for (let i = 0; i <= 6; i++) g.lineTo(CX - 28 + i * 9.4, my + 4 + (i % 2 ? -7 : 6)); g.stroke(); }
-      else if (base === 'grin') fillMouth(() => { g.beginPath(); g.moveTo(CX - 42, my - 8); g.quadraticCurveTo(CX, my + 50, CX + 42, my - 8); g.closePath(); });
-      else if (base === 'O') fillMouth(() => { g.beginPath(); g.ellipse(CX, my + 8, 17, 24, 0, 0, 7); });
-      else if (base === 'scream') fillMouth(() => { g.beginPath(); g.ellipse(CX, my + 12, 34, 34, 0, 0, 7); });
-      else if (base === 'teeth') { g.fillStyle = '#fff'; g.beginPath(); g.roundRect(CX - 36, my - 10, 72, 24, 6); g.fill(); g.lineWidth = 5; g.stroke(); strokeLine(g, CX - 36, my + 2, CX + 36, my + 2, 3); for (let i = -2; i <= 2; i++) strokeLine(g, CX + i * 13, my - 10, CX + i * 13, my + 14, 3); }
-    }
-    for (let i = 0; i < drops; i++) { const x = CX + (i % 2 ? 98 : -98) + i * 6, y = CY - 60 + i * 26; g.fillStyle = '#7fc4f0'; g.lineWidth = 3; g.beginPath(); g.moveTo(x, y - 20); g.quadraticCurveTo(x + 15, y + 5, x, y + 12); g.quadraticCurveTo(x - 15, y + 5, x, y - 20); g.fill(); g.stroke(); }
-    if (extras.includes('mustache')) {
-      g.fillStyle = '#2b1a14'; g.beginPath();
-      g.moveTo(CX, my - 26); g.quadraticCurveTo(CX - 40, my - 44, CX - 76, my - 16); g.quadraticCurveTo(CX - 40, my - 20, CX, my - 12);
-      g.quadraticCurveTo(CX + 40, my - 20, CX + 76, my - 16); g.quadraticCurveTo(CX + 40, my - 44, CX, my - 26); g.fill();
-    }
-    if (extras.includes('blush')) { g.fillStyle = 'rgba(232,110,120,0.35)'; for (const s of [-1, 1]) { g.beginPath(); g.ellipse(CX + s * 70, CY + 30, 18, 10, 0, 0, 7); g.fill(); } }
-  });
-  cache.set(k, t); return t;
+// damped-spring impulse responses (unit area): y(t) = sum_k h_k * u(t - tau_k). Deterministic: only needs u(t) at past times.
+function makeKernel(f, z, n) {
+  const dt = 1 / 40, w0 = 2 * Math.PI * f, wd = w0 * Math.sqrt(1 - z * z), h = []; let sum = 0;
+  for (let k = 0; k < n; k++) { const tau = (k + 0.5) * dt, v = (w0 * w0 / wd) * Math.exp(-z * w0 * tau) * Math.sin(wd * tau) * dt; h.push(v); sum += v; }
+  return h.map((v) => v / sum);
+}
+const K_BOUNCY = makeKernel(3.0, 0.36, 24), K_QUICK = makeKernel(8, 0.55, 12);
+const QUICK = new Set(['mOpen', 'mW', 'mCurve', 'mSkew', 'mTeeth'].map((k) => FACE_INDEX[k]));
+export function springFace(targetAt, t) {
+  const out = new Array(FACE_KEYS.length).fill(0);
+  for (let k = 0; k < K_BOUNCY.length; k++) {
+    const v = targetAt(t - (k + 0.5) / 40);
+    for (let i = 0; i < out.length; i++) { const w = QUICK.has(i) ? (k < K_QUICK.length ? K_QUICK[k] : 0) : K_BOUNCY[k]; out[i] += w * v[i]; }
+  }
+  return out;
+}
+
+// ---- brush helpers
+const INKF = '#17100f';
+const nz = (i, tick, seed) => { const x = Math.sin((i + 1) * 12.9898 + tick * 78.233 + seed * 3.1) * 43758.5453; return (x - Math.floor(x)) * 2 - 1; };
+const cl01 = (x) => Math.max(0, Math.min(1, x));
+function blob(g, cx, cy, rx, ry, tick, seed) {
+  const N = 12, P = [];
+  for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, r = 1 + 0.07 * nz(i, tick, seed); P.push([cx + Math.cos(a) * rx * r, cy + Math.sin(a) * ry * r]); }
+  const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  g.beginPath(); const m0 = mid(P[N - 1], P[0]); g.moveTo(m0[0], m0[1]);
+  for (let i = 0; i < N; i++) { const m = mid(P[i], P[(i + 1) % N]); g.quadraticCurveTo(P[i][0], P[i][1], m[0], m[1]); }
+  g.closePath(); g.fill();
+}
+const FS = 1.45;                                   // overall feature scale (big chunky marker strokes like the reference)
+function brow(g, s, y, a, c, tick, seed) {
+  const L = 46 * FS, T = 15 * FS, cx = CX + s * 80 * FS;
+  const yi = y - a * L * 0.8 + 2 * nz(1, tick, seed + s), yo = y + a * L * 0.5 + 2 * nz(2, tick, seed + s);
+  const x0 = cx + s * L, x1 = cx - s * L, ym = (yi + yo) / 2 - 2 * c + 1.5 * nz(3, tick, seed + s);
+  const P0 = [x0, yo], P1 = [cx, ym], P2 = [x1, yi], pts = [];
+  for (let k = 0; k <= 16; k++) { const u = k / 16, iu = 1 - u; pts.push([iu * iu * P0[0] + 2 * iu * u * P1[0] + u * u * P2[0], iu * iu * P0[1] + 2 * iu * u * P1[1] + u * u * P2[1], u]); }
+  const left = [], right = [];
+  for (let k = 0; k <= 16; k++) {
+    const a0 = pts[Math.max(0, k - 1)], a1 = pts[Math.min(16, k + 1)]; let tx = a1[0] - a0[0], ty = a1[1] - a0[1]; const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+    const w = T * (0.42 + 0.78 * Math.pow(Math.sin(Math.PI * pts[k][2]), 0.6)) / 2;
+    left.push([pts[k][0] - ty * w, pts[k][1] + tx * w]); right.push([pts[k][0] + ty * w, pts[k][1] - tx * w]);
+  }
+  g.beginPath(); g.moveTo(left[0][0], left[0][1]); for (const p of left) g.lineTo(p[0], p[1]); for (let k = right.length - 1; k >= 0; k--) g.lineTo(right[k][0], right[k][1]); g.closePath(); g.fill();
+  for (const k of [0, 16]) { g.beginPath(); g.arc(pts[k][0], pts[k][1], T * 0.42 / 2, 0, 7); g.fill(); }
+}
+function paintFace(g, P, o) {
+  const K = FACE_INDEX, tick = Math.floor(o.t * 10), seed = o.seed;
+  g.clearRect(0, 0, FW, FH); g.save(); g.translate(o.lookX * 6, o.lookY * 5);
+  g.fillStyle = INKF; g.strokeStyle = INKF; g.lineCap = 'round'; g.lineJoin = 'round';
+  // brows: thick tapered marker strokes
+  const by = CY - 112;
+  brow(g, -1, by - P[K.bLy] * FS, P[K.bLa], P[K.bLc] * FS, tick, seed); brow(g, 1, by - P[K.bRy] * FS, P[K.bRa], P[K.bRc] * FS, tick, seed + 7);
+  // eyes: solid hand-drawn blobs (no whites); squash on blinks; flat-topped when lidded; arcs when happy
+  const lidEff = cl01(Math.max(P[K.eLid], o.blink)), hp = cl01(P[K.eHappy]);
+  for (const s of [-1, 1]) {
+    const ex = CX + s * (78 + P[K.eGap]) * FS, ey = CY - 30 + P[K.eY] * FS;
+    const asym = s > 0 ? 1 + P[K.eAsym] : 1 - P[K.eAsym] * 0.5;
+    const rx = 15 * FS * P[K.eSx] * asym * (1 - 0.3 * hp), ry = 19 * FS * P[K.eSy] * asym * (1 - 0.88 * hp);
+    const px = ex + o.lookX * 8, py = ey + o.lookY * 6, lidY = ey - ry + 2 * ry * lidEff * 0.92;
+    g.save(); g.beginPath(); g.rect(0, lidY, FW, FH); g.clip(); blob(g, px, py, rx, ry, tick, seed + s * 3); g.restore();
+    if (lidEff > 0.5) { g.globalAlpha = cl01((lidEff - 0.5) * 3) * (1 - hp); g.lineWidth = 9 * FS * 0.8; g.beginPath(); g.moveTo(ex - rx * 1.25, lidY); g.quadraticCurveTo(ex, lidY + 8, ex + rx * 1.25, lidY); g.stroke(); g.globalAlpha = 1; }
+    if (hp > 0.04) { g.globalAlpha = hp; g.lineWidth = 9 * FS * 0.8; g.beginPath(); g.moveTo(ex - rx * 1.5, ey + 6); g.quadraticCurveTo(ex, ey - 26, ex + rx * 1.5, ey + 6); g.stroke(); g.globalAlpha = 1; }
+    if (o.extras.includes('glasses')) { g.save(); g.lineWidth = 6; g.fillStyle = 'rgba(190,225,255,0.18)'; g.beginPath(); g.arc(ex, ey, 36 * FS * 0.9, 0, 7); g.fill(); g.stroke(); g.restore(); g.fillStyle = INKF; }
+  }
+  if (o.extras.includes('glasses')) { g.lineWidth = 6; g.beginPath(); g.moveTo(CX - 60, CY - 30); g.lineTo(CX + 60, CY - 30); g.stroke(); }
+  // mouth: one thick brushed curve; opens into a filled bowl; talking drives mOpen/mW through the quick spring
+  const my = CY + 104 + P[K.mY] * FS, w = Math.max(8, P[K.mW]) * FS, cv = P[K.mCurve] * FS, sk = P[K.mSkew] * FS, op = Math.max(0, P[K.mOpen]) * FS, wob = P[K.mWob];
+  const xl = CX - w, xr = CX + w, yl = my - 0.5 * cv + sk * 0.5 + 1.6 * nz(5, tick, seed), yr = my - 0.5 * cv - sk * 0.5 + 1.6 * nz(6, tick, seed), cy = my + 1.5 * cv + (yl + yr) / 2 - my;
+  const topAt = (u) => { const iu = 1 - u; return [iu * iu * xl + 2 * iu * u * CX + u * u * xr, iu * iu * yl + 2 * iu * u * cy + u * u * yr]; };
+  if (op > 2) {
+    const dep = op * 1.15, mk = () => { g.beginPath(); g.moveTo(xl, yl); g.quadraticCurveTo(CX, cy, xr, yr); g.bezierCurveTo(xr + w * 0.04, yr + dep, xl - w * 0.04, yl + dep, xl, yl); g.closePath(); };
+    g.fillStyle = '#150a0c'; mk(); g.fill();
+    if (P[K.mTeeth] > 0.05) { g.save(); mk(); g.clip(); g.fillStyle = '#fbfaf6'; g.globalAlpha = cl01(P[K.mTeeth]); g.fillRect(CX - w - 4, Math.min(yl, yr) - 6, 2 * w + 8, Math.min(op * 0.5, 26) + 8); g.restore(); }
+    if (op > 22 * FS * 0.7) { g.save(); mk(); g.clip(); g.fillStyle = '#e8737f'; g.beginPath(); g.ellipse(CX, Math.max(yl, yr) + dep * 0.92, w * 0.55, dep * 0.34, 0, 0, 7); g.fill(); g.restore(); }
+    g.fillStyle = INKF; g.lineWidth = 11 * FS * 0.8; mk(); g.stroke();
+  } else if (wob > 0.05) {
+    g.lineWidth = 11 * FS; g.beginPath(); for (let k = 0; k <= 24; k++) { const u = k / 24, p = topAt(u), yy = p[1] + wob * 7 * Math.sin(u * Math.PI * 6 + o.t * 3) * Math.sin(u * Math.PI); if (k === 0) g.moveTo(p[0], yy); else g.lineTo(p[0], yy); } g.stroke();
+  } else { g.lineWidth = 11 * FS; g.beginPath(); g.moveTo(xl, yl); g.quadraticCurveTo(CX, cy, xr, yr); g.stroke(); }
+  if (o.extras.includes('mustache')) { g.fillStyle = '#2b1a14'; g.beginPath(); const my2 = my - 44; g.moveTo(CX, my2 - 8); g.quadraticCurveTo(CX - 70, my2 - 36, CX - 130, my2 + 8); g.quadraticCurveTo(CX - 70, my2 + 8, CX, my2 + 18); g.quadraticCurveTo(CX + 70, my2 + 8, CX + 130, my2 + 8); g.quadraticCurveTo(CX + 70, my2 - 36, CX, my2 - 8); g.fill(); g.fillStyle = INKF; }
+  if (o.extras.includes('blush') || P[K.blush] > 0.05) { g.fillStyle = 'rgba(232,110,120,0.35)'; for (const s of [-1, 1]) { g.beginPath(); g.ellipse(CX + s * 175, CY + 40, 32, 17, 0, 0, 7); g.fill(); } g.fillStyle = INKF; }
+  // sweat drops (fractional counts fade the last drop in)
+  for (let i = 0; i < Math.ceil(P[K.sweat] - 0.01); i++) { const a = Math.min(1, P[K.sweat] - i), x = CX + (i % 2 ? -235 : 235) + i * 8, y = CY - 80 + i * 50 + 5 * Math.sin(o.t * 5 + i); g.globalAlpha = a; g.fillStyle = '#7fc4f0'; g.strokeStyle = INKF; g.lineWidth = 4; g.beginPath(); g.moveTo(x, y - 30); g.quadraticCurveTo(x + 22, y + 8, x, y + 18); g.quadraticCurveTo(x - 22, y + 8, x, y - 30); g.fill(); g.stroke(); g.globalAlpha = 1; }
+  g.restore();
 }
 
 // ------------------------------------------------------------------ limb (rubber hose)
@@ -323,10 +328,10 @@ export class Character {
     this.head = new THREE.Group(); this.head.position.y = 2.98; body.add(this.head);
     this.headMat = rimify(new THREE.MeshStandardMaterial({ color: this.skin, roughness: 0.55, emissive: this.skin, emissiveIntensity: 0.18 }), 0.35);
     const hm = new THREE.Mesh(new THREE.SphereGeometry(0.66, 36, 26), this.headMat); addWithOutline(this.head, hm, 1.035);
-    const shellMat = () => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false, color: 0xffffff });
-    this.eyeMat = shellMat(); this.mouthMat = shellMat();
-    this.eyeShell = new THREE.Mesh(new THREE.SphereGeometry(0.665, 36, 26), this.eyeMat); this.mouthShell = new THREE.Mesh(new THREE.SphereGeometry(0.664, 36, 26), this.mouthMat);
-    this.eyeShell.renderOrder = 2; this.mouthShell.renderOrder = 2; this.head.add(this.eyeShell, this.mouthShell);
+    this.faceCanvas = document.createElement('canvas'); this.faceCanvas.width = FW; this.faceCanvas.height = FH; this.fctx = this.faceCanvas.getContext('2d');
+    this.faceTex = new THREE.CanvasTexture(this.faceCanvas); this.faceTex.colorSpace = THREE.SRGBColorSpace; this.faceTex.generateMipmaps = false; this.faceTex.minFilter = THREE.LinearFilter; this.faceTex.anisotropy = 4;
+    const faceMat = new THREE.MeshBasicMaterial({ map: this.faceTex, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    this.faceShell = new THREE.Mesh(new THREE.SphereGeometry(0.668, 48, 32, Math.PI / 2 - 1.3, 2.6, Math.PI / 2 - 0.75, 1.5), faceMat); this.faceShell.renderOrder = 2; this.head.add(this.faceShell);
     this.hatPivot = new THREE.Group(); this.head.add(this.hatPivot);
     this.hatPivot.add(makeHair(def.hair, def.hairColor || 0x2a1a14));
     const hat = makeHat(def.hat, def.hatColor ?? 0x333333); hat.position.y = 0.4; this.hatPivot.add(hat);
@@ -396,15 +401,14 @@ export class Character {
     const pPrev = poseFor(st.anim, t - 0.12, speed);
     this.hatPivot.rotation.x = (pPrev.nod - pose.nod) * 0.6 * (tk ? 1.4 : 1); this.hatPivot.rotation.z = (pPrev.roll - pose.roll) * 0.6;
 
-    // face layers
-    const E = EXPR[st.face] || EXPR.neutral;
-    const n = Math.floor(t / 3.1), off = hash(n + this.seed) * 2.6, ph = t - n * 3.1;
-    const blink = ph > off && ph < off + 0.12;
-    const em = eyesTex(this.extras, E.eyes, E.brows, blink, look, tk && tk.raise ? 1 : 0);
-    if (this.eyeMat.map !== em) { this.eyeMat.map = em; this.eyeMat.needsUpdate = true; }
-    const lvl = tk ? (tk.open < 0.12 ? 0 : tk.open < 0.4 ? 1 : tk.open < 0.7 ? 2 : 3) : 0;
-    const mm = mouthTex(this.extras, E.mouth, lvl, tk ? tk.vowel : 'ah', E.drops || 0);
-    if (this.mouthMat.map !== mm) { this.mouthMat.map = mm; this.mouthMat.needsUpdate = true; }
+    // face: continuous parameters (springy, from main.js) brushed live each frame
+    const facep = st.facep || faceTarget(st.face || 'neutral');
+    const nb = Math.floor(t / 3.1), boff = hash(nb + this.seed) * 2.6, bph = t - nb * 3.1;
+    const blinkAmt = bph > boff && bph < boff + 0.14 ? Math.sin(Math.PI * (bph - boff) / 0.14) : 0;
+    const dartS = Math.max(0, Math.min(1, (Math.sin(t * 0.53) - 0.86) / 0.07)) * Math.sign(Math.sin(t * 1.7));
+    const lookF = Math.max(-1, Math.min(1, rest * 2 + dartS));
+    paintFace(this.fctx, facep, { t, blink: blinkAmt, lookX: lookF, lookY: Math.max(-1, Math.min(1, -pitch * 3)), extras: this.extras, seed: this.seed });
+    this.faceTex.needsUpdate = true;
 
     // limbs
     const bodyM = new THREE.Matrix4().compose(this.body.position, new THREE.Quaternion().setFromEuler(this.body.rotation), this.body.scale);
